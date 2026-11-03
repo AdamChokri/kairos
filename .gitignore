@@ -1,0 +1,50 @@
+# .gitignore - the repository is public (plan D-02): nothing secret, generated or local enters it.
+
+# Secrets and key material - never committed. (The fake secrets seeded in P2 live in source files.)
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+**/secrets/
+.vault-token
+*.secret
+
+# Generated output
+reports/
+images/
+*.iso
+*.vhdx
+*.tar
+*.tar.gz
+*.zip
+
+# Python, Node.js
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage/
+htmlcov/
+node_modules/
+dist/
+
+# Ansible
+*.retry
+.scannerwork/
+infra/ansible/.cache/
+
+# Editors and operating systems
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
+.DS_Store
+Thumbs.db

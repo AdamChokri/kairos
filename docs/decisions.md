@@ -1,0 +1,128 @@
+# Decision log
+
+The decisions the project starts from: D-01 to D-20 of the project plan (`docs/plan/PROJECT-PLAN.md`, section 2), recorded on 2026-11-01 at bootstrap.
+
+**How this file changes.** An entry is never edited. A decision changes only through a new dated entry at the end, which names the entry it supersedes, says why, and links the pull request — so the history of every choice stays readable. Corrections to the plan's facts (versions, names) go to `docs/plan/ERRATA.md` instead.
+
+Template for a new entry:
+
+```markdown
+🧭 **D-NN — <decision>** · 2026-MM-DD · supersedes D-XX (or "new")
+*Why:* <the reason, with the evidence>.
+*Alternative:* <what was considered and why not>.
+*Pull request:* #<number>
+```
+
+---
+
+🧭 **D-01 — CI/CD engine: Jenkins with a declarative `Jenkinsfile` and a Multibranch Pipeline.**
+*Why:* the brief names the Jenkinsfile; ESPRIT's DevOps module and your experience are Jenkins; Warnings NG gives free per-tool trend charts; hardening Jenkins itself is DevSecOps content (§8).
+*Alternative:* GitLab CI — its security dashboards are Ultimate-tier, and hosting would move to GitLab.
+
+🧭 **D-02 — Code hosting: the public GitHub repository `AdamChokri/kairos` (Apache-2.0), protected by a ruleset on `main`.**
+*Ruleset:* pull request required (approvals 0, D-18), squash merge only, required Jenkins status check (added in WP4.6), linear history, signed commits, no force push or deletion. Secret scanning with push protection, Dependabot alerts and security updates, and private vulnerability reporting are on.
+*Why public:* free rulesets, push protection and Dependabot, easy access for the jury.
+*Consequence:* only fake seeded secrets ever enter the repository; pull requests from forks are never built.
+
+🧭 **D-03 — Application: Kairos, kept deliberately small — FastAPI on Python 3.13, React 19 + TypeScript (Vite), PostgreSQL 17.**
+*Scope:* register and log in (JWT), tasks with search, comments, YAML import, health and version endpoints — nothing else. Every feature carries a seeded weakness or a control.
+*Why:* it exercises every local tool the brief names (Bandit, ESLint security rules, Semgrep, SonarQube for IDE) and FastAPI publishes the OpenAPI document that authenticated DAST needs.
+
+🧭 **D-04 — Lab: seven Ubuntu 24.04 VMs on two Hyper-V hosts on one portable LAN — your router and switch — on their existing External switches.**
+*Why:* OpenBao and SonarQube bring the lab to 24 GB of VM memory, more than the Legion's 19 GB available; the Legion and the OptiPlex already share 192.168.1.0/24, so bridged VMs talk directly — no overlay, tunnel or routing to build, and nothing changes in either host's network setup.
+*Placement:* the CI tier on the OptiPlex (`dso-jenkins`, `dso-agent`, `dso-sonar`, 14 GB); secrets, monitoring and the runtime tier on the Legion (`dso-bao`, `dso-siem`, `dso-staging`, `dso-prod`, 10 GB), which leaves 9 GB for your own work.
+*Addresses:* each VM has a fixed MAC (`00:15:5D:7A:00:70`–`76`) and a router reservation (.70–.76); cloud-init asks with `dhcp-identifier: mac` so the router recognises it.
+*Consequence:* the lab runs wherever its LAN goes — router, switch, cables and both hosts travel together, the Legion on wired Ethernet — so in-class sessions and the defense are live; the router's internet uplink is the one thing a venue must provide (R-08).
+*Alternative:* plan v1's Tailscale overlay — the lab reachable from anywhere while it stays at home, about 10 h more.
+
+🧭 **D-05 — Agents: builds run on `dso-agent`; signing and deployment run on a deploy agent on `dso-jenkins`, which has no Docker.**
+*Why:* membership of the `docker` group is root-equivalent, so the machine that executes untrusted build code (dependencies, scanners) must hold neither `JENKINS_HOME` nor any signing or deploy credential; it cannot even reach OpenBao (D-07).
+💡 **The VM that runs pull-request code never holds a credential that can sign an image or deploy it — and pull-request builds receive no secret at all.**
+
+🧭 **D-06 — Triggers: Jenkins polls GitHub (Multibranch scan every 2 minutes); there is no inbound webhook.**
+*Why:* nothing in the lab is exposed to the internet; pushes and pull requests still build within minutes, and commit statuses go back to GitHub outbound.
+*Alternative:* a webhook through a tunnel — faster feedback, but an internet-facing route to secure.
+
+🧭 **D-07 — Secrets: OpenBao is the single store for pipeline and runtime secrets.**
+- **Server:** OpenBao 2.7 on `dso-bao` — single node, integrated Raft storage, TLS from the lab CA, file audit device shipped to Wazuh; port 8200 open only to the Legion, `dso-jenkins` and the two runtime hosts.
+- **Pipeline:** Jenkins keeps only bootstrap identities — the GitHub App key, the Slack bot token (the Slack plugin reads Jenkins credentials only) and three AppRole credentials — `bao-build`, `bao-deploy` and `bao-signer`, for the AppRoles `jenkins-build`, `jenkins-deploy` and `jenkins-signer` — each bound to `dso-jenkins`'s address. `withVault` fetches a stage's secrets on the controller when that stage runs, and masks them in logs.
+- **Runtime:** an OpenBao Agent on staging and production (AppRole bound to that host) renders the database password and JWT key into files the containers read through `*_FILE` paths.
+- **Signing:** the cosign key is a non-exportable Transit key (D-14).
+- **Operations:** Shamir unseal with 3 key shares and a threshold of 2, kept in your password manager; `make lab-up` asks for them (D-19); the root token is revoked after setup and you administer through a `userpass` account.
+*Alternative:* Jenkins credentials and host-generated secrets (plan v2) — less to run, but no central audit, no rotation in one place and no key that cannot leave its store.
+
+🧭 **D-08 — Registry: Docker Hub public repositories; images referenced by digest only.**
+Every pull is authenticated with a *read-only* token kept in OpenBao and logged in by Ansible, through stdin, on the build agent and both runtime hosts: anonymous pulls share one per-IP limit with everyone behind the same NAT. The token can only read public images, so on a runtime host it exposes nothing but pull quota.
+
+🧭 **D-09 — Code hub: a self-hosted SonarQube Community Build on `dso-sonar` (PostgreSQL 17), with the quality gate "Kairos Secure".**
+*Scope:* Community Build analyzes a single branch, so SonarQube runs in the `main` lane: its gate blocks the release (publish, sign, deploy) and it keeps the history; pull requests are gated by Semgrep, Bandit and ESLint, which carry the blocking SAST rules anyway.
+*Why self-hosted:* code and findings stay in the lab, and running the server is part of the work.
+*Rejected:* the community branch plugin — it adds pull-request analysis by patching SonarQube with a Java agent, is unsupported by SonarSource and must match every SonarQube release, which a pinned toolchain cannot afford; a commercial edition — cost.
+
+🧭 **D-10 — Toolchain: one well-tuned tool per job.**
+
+| Job | Tool | Not used, and why |
+|---|---|---|
+| Secrets | Gitleaks | TruffleHog — overlaps ([PLUS] for verified-secret checks) |
+| SAST | Semgrep CE (registry + custom rules), Bandit, ESLint security plugins on every pull request; SonarQube Community Build on `main` | CodeQL — a second deep engine the budget cannot absorb |
+| SCA, image, Dockerfile configuration | Trivy (fs, image, config), with the CISA KEV catalog for exploitation-aware blocking | Grype, OWASP Dependency-Check — overlap; Snyk, Docker Scout — SaaS accounts |
+| Dockerfile lint | Hadolint | — |
+| SBOM | Syft (CycloneDX), signed and attached to each image with cosign | — |
+| DAST | ZAP (baseline + API scan) | Nikto — legacy and noisy; Nuclei — overlap |
+| Infrastructure as code beyond Dockerfiles | none in the core; Conftest for Compose is [PLUS] | Checkov (CVE-2026-0302), KICS (2026 distribution compromise), Terrascan (archived) |
+| Secrets management | OpenBao | HashiCorp Vault — BSL licence; Jenkins credentials alone — no audit or Transit |
+| Model behind Kairos Assist | DeepSeek `deepseek-flash` through its OpenAI-compatible API (D-20) | `deepseek-v4-pro` — pricier, with a lower concurrency limit, for a task this simple; a self-hosted model — a GPU service to run |
+| Host | Wazuh (HIDS, FIM, SCA), Lynis | — |
+
+💡 **The slides' "three well-tuned checks beat ten noisy ones" is applied literally. Trivy covers three jobs from one pinned, signature-verified tool — a conscious trade-off given its 2026 compromise, mitigated by D-12.**
+
+🧭 **D-11 — Gates: thresholds and rollout modes in one policy file, `security/policy/gates.env`; fail-closed.**
+Each control script runs its tool with the tool's own fail switch off, writes the full JSON/SARIF report, applies the threshold from `gates.env` and exits 0 (pass), 1 (blocked), 2 (would block, but the control is still in report mode) or any other code on a tool error. The Jenkinsfile turns 2 into a yellow stage and every other non-zero code into a red stage and a failed build, so a broken tool never passes.
+💡 **Report → fix → enforce: every control lands reporting, the findings it reveals are fixed, and only then does it block — a new control never stalls on an untriaged backlog, and a fix is never stuck behind the very problem it fixes.**
+
+🧭 **D-12 — Security tools are part of the supply chain.**
+Every tool image is pinned by digest in `ci/tools/tools.lock`; vendor signatures are verified where published (Trivy images and the OpenBao package, keylessly); a denylist records known-compromised versions; every tool runs through `ci/scripts/run-tool.sh` (read-only source, non-root, no capabilities, memory limit, no network unless needed, never the Docker socket); tool updates arrive only through pull requests after a 7-day cooldown.
+💡 **The 2026 Trivy, KICS and Checkov incidents make "the scanner is part of the supply chain" a concrete, citable lesson.**
+
+🧭 **D-13 — Exemptions: a register with expiry, the tools' own suppression markers tied to an `EXC-` ID, and an automatic validator** (§4.3).
+
+🧭 **D-14 — Delivery: images and their SBOMs signed with an OpenBao-held key, verified by the host through a forced-command deploy script, with automatic rollback.**
+- The signing key is the Transit key `kairos-images` (ECDSA P-256, not exportable). The deploy agent's `sign` stage gets a short-lived token through the `jenkins-signer` AppRole and runs `cosign sign --key openbao://kairos-images`, then attaches each image's CycloneDX SBOM as a signed attestation with the same key (`cosign attest --type cyclonedx`); the public key is in the repository and on the hosts; signatures are recorded in the public Rekor log, which suits a public repository.
+- Deployment uses SSH with one key per environment, kept in OpenBao and fetched only by the deploy stages, restricted in `authorized_keys` by `restrict`, `from=` and `command=`. The script accepts only `deploy <api@digest> <web@digest>`, `rollback` and `status`; it verifies both signatures, deploys by digest, checks health and rolls back on failure.
+💡 **Even a fully bypassed pipeline cannot run an unsigned image: the host checks the signature itself.**
+💡 **The signing key cannot be stolen from Jenkins, an agent or a backup: it never leaves OpenBao, and every signature is an audited Transit call.**
+
+🧭 **D-15 — Monitoring and alerts: Wazuh 4.14.x single-node (Docker) and Slack.**
+Wazuh covers host intrusion detection (file integrity, SSH brute force with active response), log analysis including the OpenBao audit log, and automated compliance (CIS Ubuntu 24.04 SCA policy) in one tool. Slack is the single notification channel for Jenkins and Wazuh; Teams' Office 365 connectors were retired in May 2026, and the brief asks for one channel.
+
+🧭 **D-16 — TLS: a small lab CA for OpenBao, staging and production; Jenkins and SonarQube UIs stay on HTTP behind allow-lists.**
+The CA is created once with `openssl` in WSL2 — its key never enters the repository, its certificate does (`infra/pki/kairos-lab-ca.crt`) — and is trusted by every VM (Ansible), the Jenkins JVM and the Legion. OpenBao, staging and production serve TLS 1.2+; the Wazuh dashboard has its own certificates. Jenkins and SonarQube stay on HTTP inside the LAN, reachable only from the addresses that need them — an accepted lab risk (R-10), with TLS for tool UIs as an improvement axis.
+
+🧭 **D-17 — Provisioning: golden image + cloud-init NoCloud seeds + PowerShell on each host + Ansible from WSL2; no Terraform.**
+*Why:* a golden image with cloud-init seeds builds a VM in minutes, and Ansible keeps every VM reproducible for a third party. `infra/lab/vms.csv` is the single description of the VMs — read by `New-LabVM.ps1` on each host and by the power scripts.
+
+🧭 **D-18 — Solo-proof roles and repository hygiene.**
+Jenkins accounts `admin` (Platform Admin, break-glass only), `adam` (Developer and Security Champion) and `release-manager` (production approval). GitHub required approvals stay at 0 because GitHub does not let authors approve their own pull requests; raising them to 1 is the only change a team needs. From commit #1: `.gitattributes` (LF everywhere, CRLF for PowerShell scripts, `*.ps1`), the repository in WSL2 ext4, SSH commit signing.
+
+🧭 **D-19 — Lab power: one command from WSL2 on the Legion drives both hosts, and unseals OpenBao on the way up.**
+`make lab-up`, `make lab-down` and `make lab-status` run the scripts of Appendix G: the Legion's Hyper-V through Windows PowerShell (WSL interop), the OptiPlex's over SSH with a dedicated key. Nothing starts unless every host has the rights, the wired link and the memory; VMs start and stop one at a time in a fixed order; nothing is ever saved or powered off hard.
+💡 **Unseal key shares are typed, never stored: they reach OpenBao through stdin and HTTPS — never a file, a command-line argument or the screen.**
+
+🧭 **D-20 — AI: Kairos Assist, an LLM feature on DeepSeek's API, is part of the core and arrives as a new feature through the gates (WP4.7).**
+*Why:* it brings the OWASP Top 10 for LLM Applications into the same pipeline. Its three LLM weaknesses (SV-12–SV-14), written the way a developer under pressure would write them, must be caught by the existing gates and two new Semgrep rules, then fixed test-first.
+*Provider:* DeepSeek's OpenAI-compatible API (`https://api.deepseek.com`) with `deepseek-flash` (DeepSeek-V4.1-Flash-1017) in non-thinking mode — turning a note into a task needs no reasoning, and Flash is the cheaper model with the higher concurrency limit; `deepseek-v4-pro` is one configuration value away. One API key per environment lives in OpenBao, rendered by the OpenBao Agent; CI uses a stub model (no key, no cost, deterministic tests); `ASSIST_ENABLED` switches the feature off without a release.
+*Data:* DeepSeek's privacy policy stores the data it collects on servers in the People's Republic of China, so Kairos sends it only lab data — fake users' task text — with an opaque `user_id`, never an e-mail address; the report discusses data residency and the open-weights alternative of hosting the same model yourself (T-15).
+*Alternative:* a local model on the Legion's GPU — free and offline, but one more always-on service on the workstation, and no key to protect.
+💡 **DeepSeek's defaults — thinking mode on, up to 64K output tokens per call — are the unbounded-consumption weakness (LLM10) in its real-world form; the fix is three call settings and a per-user rate limit, and a Semgrep rule keeps them.**
+
+---
+
+## Decisions after the plan
+
+🧭 **D-21 — The repository lives in the project folder, `D:\Projects\Kairos\kairos`, worked on from WSL2 with Linux permissions on the D: drive** · 2026-11-01 · supersedes the part of D-18 that kept the repository in WSL2's ext4 disk
+*Why:* one folder, `D:\Projects\Kairos`, holds the whole project — repository, Ubuntu ISO, golden image, seeds, VMs, verified releases, guides — so it is found, backed up and moved as one.
+*How:* WSL2 mounts the Windows drives with permission metadata (`/etc/wsl.conf`, `[automount] options = "metadata,umask=22,fmask=11"`, Microsoft's documented setting). Files created from WSL2 keep real Linux modes, so the executable bit, Git's file modes and Ansible's refusal of a world-writable `ansible.cfg` folder all behave as on ext4. Git is used from WSL2 only, and repository files are edited through WSL2 (VS Code's WSL mode): a file a Windows program creates or rewrites has no metadata and shows as `rwxr--r--`, which Git would record as executable — screenshots saved from Windows into `docs/evidence/` get `chmod 644` before they are staged.
+*Kept outside the folder:* key material and per-user tools — `~/.ssh` (SSH keys), `~/.kairos-pki` (the lab CA key and issued keys), `~/.local/bin` (pinned tools) and the OpenBao login token — which belong to the WSL2 account, not to a project folder that backup and sync tools copy.
+*Cost:* Git and Docker bind mounts are slower on the D: drive than on ext4 — acceptable at this repository's size.
+*Alternative:* the repository in WSL2's ext4 disk (`~/projects/kairos`, D-18 as written) — faster, but the project split across two places.
+*Recorded in:* the bootstrap commit.

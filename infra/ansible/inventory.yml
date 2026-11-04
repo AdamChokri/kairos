@@ -1,0 +1,51 @@
+# infra/ansible/inventory.yml - the lab VMs by role (plan section 3.1). Addresses are not repeated
+# here: group_vars/all/main.yml reads each VM's address from infra/lab/vms.csv.
+all:
+  children:
+    lab:
+      hosts:
+        dso-bao:
+        dso-jenkins:
+        dso-agent:
+        dso-sonar:
+        dso-siem:
+        dso-staging:
+        dso-prod:
+    openbao:
+      hosts:
+        dso-bao:
+    jenkins_controller:
+      hosts:
+        dso-jenkins:
+    jenkins_build:
+      hosts:
+        dso-agent:
+    sonarqube:
+      hosts:
+        dso-sonar:
+    wazuh_server:
+      hosts:
+        dso-siem:
+    runtime:
+      hosts:
+        dso-staging:
+        dso-prod:
+    # Every VM but dso-bao runs Docker (WP1.2).
+    docker_hosts:
+      children:
+        jenkins_controller:
+        jenkins_build:
+        sonarqube:
+        wazuh_server:
+        runtime:
+    # Tool VMs: their published ports sit behind the DOCKER-USER allow-list from P1 (section 3.1).
+    tool_vms:
+      children:
+        jenkins_controller:
+        sonarqube:
+        wazuh_server:
+    # Hosts with a Wazuh agent (WP1.6).
+    wazuh_agents:
+      children:
+        openbao:
+        runtime:

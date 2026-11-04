@@ -1,0 +1,17 @@
+---
+# A restart seals OpenBao: unseal it afterwards (make lab-up, or `bao operator unseal` twice).
+- name: Restart openbao
+  ansible.builtin.systemd_service:
+    name: openbao
+    state: restarted
+  notify: Report that OpenBao is sealed
+
+- name: Report that OpenBao is sealed
+  ansible.builtin.debug:
+    msg: "OpenBao restarted and is SEALED now - unseal it with two key shares (make lab-up, or bao operator unseal twice)."
+
+# A reload (SIGHUP) picks up a renewed certificate without sealing.
+- name: Reload openbao
+  ansible.builtin.systemd_service:
+    name: openbao
+    state: reloaded

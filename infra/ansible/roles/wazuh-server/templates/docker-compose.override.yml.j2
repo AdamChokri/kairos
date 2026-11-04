@@ -1,0 +1,27 @@
+# docker-compose.override.yml - managed by Ansible (infra/ansible/roles/wazuh-server), plan WP1.6.
+# Merged by Compose over wazuh-docker's docker-compose.yml: images by digest, Kairos's own
+# configuration files (same mount targets, so they replace upstream's), passwords from .env (0600).
+services:
+  wazuh.manager:
+    image: "{{ image_wazuh_manager }}"
+    environment:
+      INDEXER_PASSWORD: "${INDEXER_PASSWORD:?}"
+      API_PASSWORD: "${API_PASSWORD:?}"
+    volumes:
+      - ./config/wazuh_cluster/kairos_manager.conf:/wazuh-config-mount/etc/ossec.conf
+
+  wazuh.indexer:
+    image: "{{ image_wazuh_indexer }}"
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms1g -Xmx1g"
+    volumes:
+      - ./config/wazuh_indexer/kairos_internal_users.yml:/usr/share/wazuh-indexer/config/opensearch-security/internal_users.yml
+
+  wazuh.dashboard:
+    image: "{{ image_wazuh_dashboard }}"
+    environment:
+      INDEXER_PASSWORD: "${INDEXER_PASSWORD:?}"
+      DASHBOARD_PASSWORD: "${DASHBOARD_PASSWORD:?}"
+      API_PASSWORD: "${API_PASSWORD:?}"
+    volumes:
+      - ./config/wazuh_dashboard/kairos_wazuh.yml:/usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml

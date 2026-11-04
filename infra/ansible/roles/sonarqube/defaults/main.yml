@@ -1,0 +1,6 @@
+---
+# Heaps for the 4 GB VM of plan section 3.1. If WP0.2 moves dso-sonar to 3 GB, set all three to
+# 384m in infra/ansible/group_vars/sonarqube.yml.
+sonarqube_heap_web: 512m
+sonarqube_heap_ce: 512m
+sonarqube_heap_search: 512m

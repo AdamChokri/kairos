@@ -1,0 +1,24 @@
+{
+  "policy": {
+    "description": "Kairos (plan WP1.6): delete Wazuh indices {{ wazuh_retention_days }} days after their creation",
+    "default_state": "hot",
+    "states": [
+      {
+        "name": "hot",
+        "actions": [],
+        "transitions": [{"state_name": "delete", "conditions": {"min_index_age": "{{ wazuh_retention_days }}d"}}]
+      },
+      {
+        "name": "delete",
+        "actions": [{"delete": {}}],
+        "transitions": []
+      }
+    ],
+    "ism_template": [
+      {
+        "index_patterns": ["wazuh-alerts-*", "wazuh-archives-*", "wazuh-monitoring-*", "wazuh-statistics-*"],
+        "priority": 100
+      }
+    ]
+  }
+}

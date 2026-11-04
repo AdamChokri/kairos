@@ -1,0 +1,12 @@
+# Published ports of dso-jenkins and who may reach them (plan section 3.1, DOCKER-USER allow-list).
+docker_allow:
+  - port: 8080
+    proto: tcp
+    sources: ["{{ legion_address }}", "{{ hostvars['dso-agent'].ansible_host }}"]
+
+# The deploy agent on dso-jenkins (plan WP1.4, D-05): signs and deploys, has no Docker.
+jenkins_agent:
+  name: deploy-agent
+  user: jdeploy
+  docker: false
+  secret_field: deploy_secret

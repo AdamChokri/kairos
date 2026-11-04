@@ -1,0 +1,14 @@
+# Published ports of dso-siem and who may reach them (plan section 3.1, DOCKER-USER allow-list).
+# 1514/1515: agent events and enrollment, from the three agent hosts only. 443: the dashboard,
+# 55000 (manager API) and 9200 (indexer): the Legion only. 514/udp (syslog): nobody, for now.
+wazuh_agent_sources:
+  - "{{ hostvars['dso-bao'].ansible_host }}"
+  - "{{ hostvars['dso-staging'].ansible_host }}"
+  - "{{ hostvars['dso-prod'].ansible_host }}"
+docker_allow:
+  - {port: 443, proto: tcp, sources: ["{{ legion_address }}"]}
+  - {port: 1514, proto: tcp, sources: "{{ wazuh_agent_sources }}"}
+  - {port: 1515, proto: tcp, sources: "{{ wazuh_agent_sources }}"}
+  - {port: 55000, proto: tcp, sources: ["{{ legion_address }}"]}
+  - {port: 9200, proto: tcp, sources: ["{{ legion_address }}"]}
+  - {port: 514, proto: udp, sources: []}

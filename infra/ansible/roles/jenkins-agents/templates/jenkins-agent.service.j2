@@ -1,0 +1,21 @@
+# /etc/systemd/system/jenkins-agent.service - managed by Ansible (infra/ansible/roles/jenkins-agents).
+# Inbound agent over WebSocket (plan WP1.4): no inbound port; agent.jar is fetched from the
+# controller at every start, so it always matches the controller's version.
+[Unit]
+Description=Jenkins {{ jenkins_agent.name }} (Kairos lab)
+Wants=network-online.target
+After=network-online.target{{ ' docker.service' if jenkins_agent.docker else '' }}
+StartLimitIntervalSec=0
+
+[Service]
+User={{ jenkins_agent.user }}
+Group={{ jenkins_agent.user }}
+WorkingDirectory={{ jenkins_agent_home }}
+ExecStartPre=/usr/bin/curl -sSf -o {{ jenkins_agent_home }}/agent.jar {{ jenkins_url }}jnlpJars/agent.jar
+ExecStart=/usr/bin/java -Xmx256m -jar {{ jenkins_agent_home }}/agent.jar -url {{ jenkins_url }} -name {{ jenkins_agent.name }} -secret @{{ jenkins_agent_home }}/.agent-secret -webSocket -workDir {{ jenkins_agent_home }}/work
+Restart=always
+RestartSec=15
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

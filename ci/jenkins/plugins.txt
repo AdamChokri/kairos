@@ -1,0 +1,17 @@
+# ci/jenkins/plugins.txt - controller plugins (plan WP1.4). The first block is what the plan asks for;
+# ci/jenkins/pin-plugins.sh replaces this file with every plugin pinned, dependencies included.
+workflow-aggregator
+pipeline-graph-view
+git
+github-branch-source
+credentials-binding
+matrix-auth
+audit-trail
+warnings-ng
+htmlpublisher
+junit
+slack
+timestamper
+ws-cleanup
+copyartifact
+hashicorp-vault-plugin

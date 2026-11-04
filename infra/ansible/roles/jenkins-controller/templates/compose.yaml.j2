@@ -1,0 +1,18 @@
+# /opt/jenkins/compose.yaml - managed by Ansible (infra/ansible/roles/jenkins-controller), plan WP1.4.
+services:
+  jenkins:
+    image: "kairos/jenkins-controller:{{ jenkins_image_tag }}"
+    pull_policy: never
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      JAVA_OPTS: "-Xms1g -Xmx1g -Djava.awt.headless=true"
+    # Containers do not read the VM's /etc/hosts: OpenBao's name is given here (section 3.1).
+    extra_hosts:
+      - "openbao.kairos.lab:{{ hostvars['dso-bao'].ansible_host }}"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+
+volumes:
+  jenkins_home:

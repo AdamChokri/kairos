@@ -1,0 +1,19 @@
+---
+# kairos_internal_users.yml - managed by Ansible (infra/ansible/roles/wazuh-server), plan WP1.6.
+# Replaces wazuh-docker's demo user list: only the two users Wazuh needs, with hashes of the random
+# passwords kept in OpenBao (kv/infra/wazuh). The demo users and their published passwords are gone.
+_meta:
+  type: "internalusers"
+  config_version: 2
+
+admin:
+  hash: "{{ secret_wazuh.indexer_admin_hash }}"
+  reserved: true
+  backend_roles:
+    - "admin"
+  description: "Wazuh indexer administrator (Kairos)"
+
+kibanaserver:
+  hash: "{{ secret_wazuh.dashboard_hash }}"
+  reserved: true
+  description: "Wazuh dashboard server user (Kairos)"

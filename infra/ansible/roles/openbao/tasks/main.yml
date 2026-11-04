@@ -1,0 +1,127 @@
+---
+# Role openbao (plan WP1.3, D-07): OpenBao from its signature-verified package on dso-bao,
+# integrated Raft storage, TLS from the lab CA, a declarative file audit device, UFW.
+- name: The verified package and the issued certificate exist in WSL2
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.fileglob', openbao_deb_local) | length > 0
+      - lookup('ansible.builtin.fileglob', openbao_cert_local) | length > 0
+      - lookup('ansible.builtin.fileglob', openbao_key_local) | length > 0
+    fail_msg: >-
+      Run infra/openbao/fetch-release.sh {{ openbao_version }} (verifies the package) and
+      infra/pki/issue-cert.sh openbao.kairos.lab {{ ansible_host }} first.
+    quiet: true
+  delegate_to: localhost
+  become: false
+
+- name: The local package folder exists
+  ansible.builtin.file:
+    path: /var/cache/kairos
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: The package is copied to the VM
+  ansible.builtin.copy:
+    src: "{{ openbao_deb_local }}"
+    dest: "/var/cache/kairos/{{ openbao_deb_name }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: The copied package has the checksum of the verified checksums.txt
+  ansible.builtin.stat:
+    path: "/var/cache/kairos/{{ openbao_deb_name }}"
+    checksum_algorithm: sha256
+  register: openbao_deb_stat
+  failed_when: openbao_deb_stat.stat.checksum != openbao_deb_sha256
+
+- name: OpenBao is installed from that package
+  ansible.builtin.apt:
+    deb: "/var/cache/kairos/{{ openbao_deb_name }}"
+  notify: Restart openbao
+
+- name: OpenBao is held at the pinned version
+  ansible.builtin.dpkg_selections:
+    name: openbao
+    selection: hold
+
+- name: The audit log folder exists
+  ansible.builtin.file:
+    path: /var/log/openbao
+    state: directory
+    owner: openbao
+    group: openbao
+    mode: "0750"
+
+- name: The TLS certificate is the lab CA's, for openbao.kairos.lab
+  ansible.builtin.copy:
+    src: "{{ openbao_cert_local }}"
+    dest: /opt/openbao/tls/tls.crt
+    owner: openbao
+    group: openbao
+    mode: "0644"
+  notify: Reload openbao
+
+- name: The TLS key is in place (readable by OpenBao only)
+  ansible.builtin.copy:
+    src: "{{ openbao_key_local }}"
+    dest: /opt/openbao/tls/tls.key
+    owner: openbao
+    group: openbao
+    mode: "0600"
+  no_log: true
+  notify: Reload openbao
+
+- name: The server configuration is in place
+  ansible.builtin.template:
+    src: openbao.hcl.j2
+    dest: /etc/openbao/openbao.hcl
+    owner: root
+    group: openbao
+    mode: "0640"
+  notify: Restart openbao
+
+- name: The audit log is rotated daily and kept 14 days
+  ansible.builtin.copy:
+    src: logrotate-openbao
+    dest: /etc/logrotate.d/openbao
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: OpenBao is enabled and running
+  ansible.builtin.systemd_service:
+    name: openbao
+    enabled: true
+    state: started
+
+- name: UFW is installed
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+
+- name: UFW admits SSH from the Legion only
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "22"
+    from_ip: "{{ item }}"
+    comment: kairos ssh
+  loop: "{{ ssh_sources }}"
+
+- name: UFW admits OpenBao's API from the Legion, dso-jenkins and the runtime hosts only
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "8200"
+    from_ip: "{{ item }}"
+    comment: kairos openbao
+  loop: "{{ openbao_api_sources }}"
+
+- name: UFW denies every other incoming connection and is enabled
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming

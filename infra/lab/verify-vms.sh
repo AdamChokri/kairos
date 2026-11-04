@@ -22,11 +22,14 @@ REMOTE
 )
 
 declare -A seen_id=() seen_key=()
-failures=0
+failures=0 checked=0
+# How many VMs vms.csv lists, counted on its own, so the loop below cannot miscount it (E-19).
+expected=$(tr -d '\r' < "$DIR/vms.csv" | awk -F, 'NR > 1 && $1 != "" {n++} END {print n + 0}')
 printf '%-12s %-15s %-8s %-6s %-6s %-6s %-6s %-6s %s\n' VM ADDRESS HOSTNAME ADDR MID KEY CYCLES CINIT BUILDER
 while IFS=, read -r name _ ip _; do
   [[ -z $name || $name == name ]] && continue
-  if ! out=$(ssh -i "$LAB_ADMIN_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5 \
+  # -n: ssh must not read this loop's input (vms.csv), or the loop would stop after one VM (E-19).
+  if ! out=$(ssh -n -i "$LAB_ADMIN_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5 \
         -o StrictHostKeyChecking=accept-new "$LAB_ADMIN_USER@$ip" "$remote" 2>&1); then
     printf '%-12s %-15s FAIL: no SSH (%s)\n' "$name" "$ip" "$(tail -1 <<<"$out")"
     failures=$((failures + 1)); continue
@@ -45,9 +48,16 @@ while IFS=, read -r name _ ip _; do
   [[ -n ${v[machine_id]:-} ]] && seen_id[${v[machine_id]}]=$name
   [[ -n ${v[host_key]:-} ]] && seen_key[${v[host_key]}]=$name
   printf '%-12s %-15s %-8s %-6s %-6s %-6s %-6s %-6s %s\n' "$name" "$ip" "${row[@]}"
+  checked=$((checked + 1))
   unset v
 done < <(tr -d '\r' < "$DIR/vms.csv")
 
 echo
-if (( failures == 0 )); then echo "All VMs pass."; else echo "$failures check(s) failed."; fi
+# Every row of vms.csv must have been checked: a short count is a failure, never a pass (E-19).
+if (( checked != expected )); then
+  echo "only $checked of the $expected VMs in vms.csv were checked"
+  failures=$((failures + 1))
+fi
+if (( expected == 0 )); then echo "vms.csv lists no VM"; failures=$((failures + 1)); fi
+if (( failures == 0 )); then echo "All $checked VMs pass."; else echo "$failures check(s) failed."; fi
 (( failures == 0 ))

@@ -40,6 +40,14 @@
     group: root
     mode: "0644"
 
+- name: The journald drop-in folder exists (a minimized image has none)
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: The journal is kept on disk across reboots
   ansible.builtin.copy:
     dest: /etc/systemd/journald.conf.d/10-kairos.conf

@@ -17,6 +17,14 @@
     state: present
     update_cache: true
 
+- name: Docker's configuration folder exists
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Docker rotates container logs and keeps containers running across daemon restarts
   ansible.builtin.copy:
     dest: /etc/docker/daemon.json
@@ -55,6 +63,14 @@
         group: root
         mode: "0755"
       notify: Apply the DOCKER-USER allow-list
+
+    - name: The systemd drop-in folder for Docker exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/docker.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
 
     - name: Docker applies the allow-list before and after it starts
       ansible.builtin.copy:

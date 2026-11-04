@@ -2,7 +2,7 @@
 # Base image pinned by digest (ci/tools/pin-images.sh); plugins pinned in plugins.txt
 # (ci/jenkins/pin-plugins.sh). Built on dso-jenkins by the Ansible role jenkins-controller,
 # which adds the lab CA certificate (infra/pki/kairos-lab-ca.crt) to the build context.
-FROM jenkins/jenkins:lts-jdk21@sha256:0000000000000000000000000000000000000000000000000000000000000000
+FROM jenkins/jenkins:lts-jdk21@sha256:74401de6a6f92e1afe1b02d1c8e3d0c33f263bfb5275dd8813f9150355f2367b
 
 # The lab CA, trusted by the JVM (the Vault plugin's TLS to OpenBao) and by the system (git, curl).
 # USER by number: 0 is root, 1000 the image's jenkins account.

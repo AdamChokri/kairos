@@ -1,7 +1,7 @@
 # infra/ansible/group_vars/all/main.yml - lab-wide settings (plan section 3.1).
 # Addresses come from infra/lab/vms.csv and hosts.csv: one description of the lab, no copy here.
 lab_dir: "{{ inventory_dir }}/../lab"
-ansible_host: "{{ lookup('ansible.builtin.csvfile', inventory_hostname, file=lab_dir ~ '/vms.csv', delimiter=',', col='2') }}"
+# Each VM's ansible_host is set in inventory.yml, by its literal name (E-24).
 legion_address: "{{ lookup('ansible.builtin.csvfile', 'legion', file=lab_dir ~ '/hosts.csv', delimiter=',', col='1') }}"
 
 lab_admin_user: adam

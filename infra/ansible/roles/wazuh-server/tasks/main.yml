@@ -45,8 +45,7 @@
     repo: https://github.com/wazuh/wazuh-docker.git
     dest: "{{ wazuh_docker_dir }}"
     version: "v{{ wazuh_version }}"
-    depth: 1
-    single_branch: true
+    single_branch: true   # no depth: a shallow clone at a tag fails on every rerun (E-25)
   register: wazuh_checkout
 
 - name: The tag points to the pinned commit

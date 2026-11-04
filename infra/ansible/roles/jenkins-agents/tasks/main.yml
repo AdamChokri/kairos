@@ -122,8 +122,7 @@
         repo: https://github.com/testssl/testssl.sh.git
         dest: /opt/testssl.sh
         version: "{{ testssl_version }}"
-        depth: 1
-        single_branch: true
+        single_branch: true   # no depth: a shallow clone at a tag fails on every rerun (E-25)
       register: testssl_checkout
 
     - name: The tag points to the pinned commit

@@ -4,8 +4,8 @@ What runs in the lab, where, at which version, and the facts later work packages
 
 | Service | URL / address | VM | Version (pinned in) | Notes |
 |---|---|---|---|---|
-| OpenBao | `https://openbao.kairos.lab:8200` | `dso-bao` | _2.7.x_ (`infra/ansible/group_vars/all/versions.yml`) | Raft, TLS from the lab CA, audit `/var/log/openbao/audit.log`; 3 shares, threshold 2 |
-| Jenkins controller | `http://jenkins.kairos.lab:8080/` | `dso-jenkins` | _LTS version_ (`ci/jenkins/Dockerfile`) | Built-in node: 0 executors; agents `build-agent` (label `build`, 2 executors), `deploy-agent` (label `deploy`, 1 executor) over WebSocket |
+| OpenBao | `https://openbao.kairos.lab:8200` | `dso-bao` | 2.7.2 (`infra/ansible/group_vars/all/versions.yml`) | Raft, TLS from the lab CA, audit `/var/log/openbao/audit.log`; 3 shares, threshold 2 |
+| Jenkins controller | `http://jenkins.kairos.lab:8080/` | `dso-jenkins` | 2.580.2 LTS, `lts-jdk21` by digest (`ci/jenkins/Dockerfile`); plugins pinned (`ci/jenkins/plugins.txt`) | Built-in node: 0 executors; only port 8080 published. Agents over WebSocket (`agent.jar -webSocket`, E-27): `build-agent` on `dso-agent` (user `jagent`, in `docker`; label `build`, 2 executors), `deploy-agent` on `dso-jenkins` (user `jdeploy`, no Docker access; label `deploy`, 1 executor). GitHub App credential `github-app` |
 | SonarQube Community Build | `http://sonar.kairos.lab:9000` | `dso-sonar` | _version_ (`images.yml`) | Mode: _Standard Experience / MQR_; project `kairos`; gate "Kairos Secure" |
 | Wazuh | `https://wazuh.kairos.lab` | `dso-siem` | _4.14.x_ (`versions.yml`, `images.yml`) | Agents: `dso-bao`, `dso-staging`, `dso-prod`; Slack from level 10; retention 14 days |
 

@@ -21,9 +21,9 @@ Rotation periods follow plan sections 3.3 and 14: 90 days for tokens and AppRole
 | OpenBao `adam` | userpass account | Policy `admin` (tokens 1 h, renewable to 8 h) | Your safe place | 2026-11-04 | 2027-11-04 |
 | AppRole `jenkins-build`, `jenkins-deploy`, `jenkins-signer` | Role ID + secret ID | Policies of the same name, bound to 192.168.1.71 | Jenkins credentials `bao-build`, `bao-deploy`, `bao-signer` (WP4.1) | | 90 days (enforced) |
 | AppRole `kairos-staging`, `kairos-prod` | Role ID + secret ID | Policies of the same name, bound to .75 / .76 | Runtime host, 0400 (WP5.3 staging, WP6.1 production) | | 90 days (enforced) |
-| Jenkins `admin` | Account | Break-glass administrator | Your safe place | | Yearly |
-| Jenkins agent secrets (`build-agent`, `deploy-agent`) | Agent secrets | Connect one agent each | OpenBao `kv/infra/jenkins-agents` (WP1.4) | | When the node is recreated |
-| GitHub App `kairos-jenkins` | App private key | This repository only: contents/metadata/pull requests read, commit statuses read & write | Jenkins credentials (WP1.4); the downloaded key is shredded | | Yearly |
+| Jenkins `admin` | Account | Break-glass administrator | Your safe place | 2026-11-04 | 2027-11-04 |
+| Jenkins agent secrets (`build-agent`, `deploy-agent`) | Agent secrets | Connect one agent each | OpenBao `kv/infra/jenkins-agents`; on each agent VM, 0400 (`.agent-secret`) | 2026-11-04 | When the node is recreated |
+| GitHub App `kairos-jenkins-adamchokri` | App private key (PKCS#8) | Installed on `AdamChokri/kairos` only, webhook off: contents, metadata, pull requests read; commit statuses read & write | Jenkins credential `github-app`; the downloaded key and the converted copy are shredded | 2026-11-04 | 2027-11-04 |
 | SonarQube `admin` | Account | Administrator | Your safe place | | Yearly |
 | SonarQube `kairos-ci` | Analysis token | Project `kairos` | OpenBao `kv/ci/sonarqube` (WP1.5) | | 90 days |
 | Wazuh indexer `admin`, `kibanaserver`, API `wazuh-wui`, enrollment password | Passwords | Wazuh internals and the dashboard login | OpenBao `kv/infra/wazuh` (WP1.6) | | Yearly |

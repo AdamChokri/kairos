@@ -1,0 +1,23 @@
+# .gitleaks.toml - Gitleaks configuration of the repository (decision D-23).
+# Read automatically from the scanned folder's root by every scan: the commit-time scan (E-11),
+# the P3 pre-commit hook and the secrets_scan stage in Jenkins. It is Gitleaks' default rule set,
+# plus one narrow allowlist:
+#   ci/jenkins/plugins.txt holds only "plugin-id:version" pins, written by ci/jenkins/pin-plugins.sh.
+#   The default rule generic-api-key reads every "*-api:<version>" line as a key (the id contains
+#   "api", the version looks random). A finding in that file is ignored only when its whole line is
+#   exactly one such pin; any other content in that file, and every other file, is still scanned.
+# A finding in real content is never allowlisted here: it goes through the exception procedure
+# (plan section 4.3: a .gitleaksignore fingerprint under an EXC-NNNN line).
+title = "Kairos"
+minVersion = "v8.30.1"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "ci/jenkins/plugins.txt: lines that are exactly one plugin-id:version pin (D-23)"
+condition = "AND"
+paths = ['''^ci/jenkins/plugins\.txt$''']
+regexTarget = "line"
+# Gitleaks hands the matched line with its leading newline, hence \A\n? ... \z (whole line only).
+regexes = ['''\A\n?[a-z0-9][a-z0-9-]*:[0-9][A-Za-z0-9._-]*\z''']

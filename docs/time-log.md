@@ -5,4 +5,4 @@ One line per working session (plan section 0.4): it drives the checkpoints of se
 | Date | Work package(s) | Hours | Notes |
 |---|---|---|---|
 | 2026-11-03 | WP0.1 (complete), WP0.2 to 0.2.3 | ≈ 3 (estimate) | Repository, ruleset, accounts; H-01 (E-15), E-16; PM-01 |
-| 2026-11-04 | WP0.2 (complete, P0 done), WP1.1 (complete) | ≈ 3 (estimate) | D-22 and CAP-01/02; E-17, E-18, E-19; PM-02; V-01 passed |
+| 2026-11-04 | WP0.2 (complete, P0 done), WP1.1, WP1.2, WP1.3 (complete) | ≈ 3 (estimate) | D-22 and CAP-01/02; E-17 to E-23; PM-02; V-01 passed; OpenBao initialized, AppRoles proven (30/30) |

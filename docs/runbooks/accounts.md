@@ -11,14 +11,14 @@ Rotation periods follow plan sections 3.3 and 14: 90 days for tokens and AppRole
 | `kairos_lab` | SSH key, no passphrase (automation: power scripts — accepted lab risk) | Legion → OptiPlex host (`administrators_authorized_keys`) | `~/.ssh` in WSL2 | 2026-11-03 | Project end |
 | `kairos_admin` | SSH key, no passphrase (automation: Ansible — accepted lab risk) | Legion → every lab VM, user `adam` (passwordless `sudo`) | `~/.ssh` in WSL2 | 2026-11-04 | Project end |
 | Docker Hub `<dh-user>` | Account | Owner of `kairos-api`, `kairos-web` | Kept offline by you (2FA on) | — | — |
-| `kairos-lab-pull` | Docker Hub token | Read-only, public repositories | Kept offline by you until WP1.3, then OpenBao `kv/infra/dockerhub-ro` | 2026-11-03 | 2027-02-01 (expires) |
+| `kairos-lab-pull` | Docker Hub token | Read-only, public repositories | OpenBao `kv/infra/dockerhub-ro` (moved there 2026-11-04) | 2026-11-03 | 2027-02-01 (expires) |
 | Slack workspace | Account | `#kairos-ci`, `#kairos-secops` | Kept offline by you | 2026-11-03 | — |
 | Kairos CI (Slack app) | Bot token `xoxb-…` | `chat:write` only | Slack app page (viewable again) until WP4.3, then Jenkins credentials | 2026-11-03 | 2027-11-03 |
 | Kairos SecOps Alerts (Slack app) | Incoming webhook | Posts to `#kairos-secops` only | Slack app page (viewable again) until WP1.6, then OpenBao `kv/infra/wazuh` | 2026-11-03 | 2027-11-03 |
 | Lab CA | CA key (`~/.kairos-pki/kairos-lab-ca.key`) | Issues certificates for `kairos.lab` and 192.168.1.0/24 only | WSL2 home, passphrase in your safe place | 2026-11-04 | Project end (certificate valid to 2029-11-03) |
-| OpenBao unseal key shares (3, threshold 2) | Shamir shares | Unseal OpenBao | Your safe place, plus one offline copy | | On suspicion (`bao operator rekey`) |
-| OpenBao root token | Token | Initial setup only | Revoked after setup (WP1.3) | | — |
-| OpenBao `adam` | userpass account | Policy `admin` | Your safe place | | Yearly |
+| OpenBao unseal key shares (3, threshold 2) | Shamir shares | Unseal OpenBao | Your safe place, plus one offline copy | 2026-11-04 | On suspicion (`bao operator rekey`) |
+| OpenBao root token | Token | Initial setup only | Revoked 2026-11-04 (WP1.3); deleted from your safe place | 2026-11-04 | — |
+| OpenBao `adam` | userpass account | Policy `admin` (tokens 1 h, renewable to 8 h) | Your safe place | 2026-11-04 | 2027-11-04 |
 | AppRole `jenkins-build`, `jenkins-deploy`, `jenkins-signer` | Role ID + secret ID | Policies of the same name, bound to 192.168.1.71 | Jenkins credentials `bao-build`, `bao-deploy`, `bao-signer` (WP4.1) | | 90 days (enforced) |
 | AppRole `kairos-staging`, `kairos-prod` | Role ID + secret ID | Policies of the same name, bound to .75 / .76 | Runtime host, 0400 (WP5.3 staging, WP6.1 production) | | 90 days (enforced) |
 | Jenkins `admin` | Account | Break-glass administrator | Your safe place | | Yearly |

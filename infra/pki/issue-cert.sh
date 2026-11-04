@@ -6,6 +6,8 @@
 # Writes ~/.kairos-pki/issued/NAME.key (0600, unencrypted: a service reads it at start) and
 # NAME.crt. Valid 397 days, the ceiling browsers accept for server certificates. Re-running it for
 # the same name issues a new key and certificate (renewal); the old pair is kept as *.old.
+# A run that does not complete (a refused CA passphrase) removes the key it created and puts the
+# previous pair back, so nothing is left half-done and it can simply be run again (E-22).
 # Example: infra/pki/issue-cert.sh openbao.kairos.lab 192.168.1.70
 set -euo pipefail
 
@@ -26,13 +28,26 @@ done
 
 umask 077
 out="$PKI/issued/$name"
-for f in "$out.key" "$out.crt"; do [[ -e $f ]] && mv -f "$f" "$f.old"; done
+completed=no moved=() ext='' csr=''
+cleanup() {
+  [[ -n $ext ]] && rm -f "$ext"
+  [[ -n $csr ]] && rm -f "$csr"
+  if [[ $completed != yes ]]; then
+    rm -f "$out.key" "$out.crt"
+    local f
+    for f in "${moved[@]}"; do mv -f "$f.old" "$f"; done
+    echo "issue-cert.sh did not complete: nothing was changed - run it again" >&2
+  fi
+}
+trap cleanup EXIT
+for f in "$out.key" "$out.crt"; do
+  if [[ -e $f ]]; then mv -f "$f" "$f.old"; moved+=("$f"); fi
+done
 
 san="DNS:$name,IP:$ip"
 for extra in "$@"; do san+=",DNS:$extra"; done
 
 ext=$(mktemp); csr=$(mktemp)
-trap 'rm -f "$ext" "$csr"' EXIT
 printf '%s\n' \
   "basicConstraints = critical, CA:false" \
   "keyUsage = critical, digitalSignature" \
@@ -50,4 +65,5 @@ chmod 600 "$out.key"
 chmod 644 "$out.crt"
 
 openssl verify -CAfile "$CA_CRT" "$out.crt"
+completed=yes
 openssl x509 -in "$out.crt" -noout -subject -enddate -ext subjectAltName

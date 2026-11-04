@@ -3,7 +3,8 @@
 # Idempotent: run it after any change to policies/*.hcl or approles.tsv; a second run changes nothing.
 #
 # Creates, when missing: KV v2 at kv/, Transit at transit/, the auth methods approle and userpass,
-# and the non-exportable ECDSA P-256 Transit key kairos-images. Writes every policy in policies/
+# and the non-exportable ECDSA P-256 Transit key kairos-images. Tunes approle/ so that the audit log
+# keeps its error messages readable (E-23). Writes every policy in policies/
 # and every AppRole in approles.tsv, bound to its VM's address from infra/lab/vms.csv.
 # Never creates or reads a secret value.
 #
@@ -63,6 +64,18 @@ ensure_auth() {  # TYPE (mounted at its own name)
 }
 ensure_auth approle
 ensure_auth userpass
+
+# AppRole errors in clear in the audit log (E-23): by default every string of a response's data is
+# HMAC'd, so a refused login (for example an address outside the role's CIDR binding) could not be
+# read or matched - by the WP1.3 check or by Wazuh in WP6.2. An error message never holds a secret;
+# tokens and secret IDs stay HMAC'd.
+tune=$(bao read -format=json sys/auth/approle/tune)
+if jq -e '(.data.audit_non_hmac_response_keys // []) == ["error"]' <<<"$tune" >/dev/null; then
+  say "unchanged auth method approle/ (audit: error messages in clear)"
+else
+  bao auth tune -audit-non-hmac-response-keys=error approle/ >/dev/null
+  say "tuned     auth method approle/ (audit: error messages in clear)"
+fi
 
 # --- Policies ---------------------------------------------------------------------------
 

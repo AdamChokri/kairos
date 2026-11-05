@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # infra/pki/make-ca.sh - creates the Kairos lab CA once (plan WP1.1, D-16).
 # The private key stays in ~/.kairos-pki (0700), encrypted with a passphrase you keep in your
-# password manager; only the certificate enters the repository, as infra/pki/kairos-lab-ca.crt.
+# safe place; only the certificate enters the repository, as infra/pki/kairos-lab-ca.crt.
 # The CA can issue nothing but leaf certificates (pathlen 0) and only for names under kairos.lab
 # and addresses in 192.168.1.0/24 (name constraints), so a stolen CA key cannot impersonate
 # any other site - even on the machines that trust it.

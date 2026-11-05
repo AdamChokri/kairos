@@ -142,3 +142,9 @@ Jenkins accounts `admin` (Platform Admin, break-glass only), `adam` (Developer a
 *Rule kept:* `.gitleaks.toml` holds only format-level false positives of generated, non-secret files, each with its reason; it is reviewed in pull requests like code, and `ci/scripts/secrets_scan.sh` and the hook use it (no other `--config`).
 *Alternative:* `.gitleaksignore` fingerprints under exception IDs (above).
 *Pull request:* the P1 pull request (`feat/p1-lab`)
+
+🧭 **D-24 — No password manager: every secret that is not in OpenBao or Jenkins lives in the owner's safe place, and every step that creates or asks for a secret carries a banner** · 2026-11-03 · supersedes the operations line of D-07 ("kept in your password manager") and nothing else in it
+*Why:* the owner has no password manager (PM-01, 2026-11-03). The values that never move into OpenBao — the unseal key shares, the administrator passwords of OpenBao, Jenkins and SonarQube, the lab CA passphrase — therefore live in a safe place the owner controls (PM-02, 2026-11-04), the three unseal shares with one more, offline copy. D-07's rules are unchanged: OpenBao stays the single store for pipeline and runtime secrets.
+*How:* before each step that creates or asks for a secret, a banner names the value exactly as it is saved, says when it appears and how long to keep it; a value that is only re-used, and a value that can be thrown away, each have their own banner. Secrets travel through hidden prompts, stdin or the clipboard, never on the screen, in a command line or in a chat, and a value that leaks is revoked or rotated at once. `docs/runbooks/accounts.md` and the scripts say "safe place".
+*Alternative:* a password manager — not available to the owner (PM-01); a project file or the repository — never, the repository is public.
+*Pull request:* the P2 pull request (`feat/p2-app`)

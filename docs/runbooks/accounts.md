@@ -1,6 +1,6 @@
 # Accounts and credentials
 
-Every account and credential of the project, by **name** — never a value (plan WP0.1). Values live in OpenBao, in Jenkins credentials (bootstrap identities only) or offline with you, as the "Stored in" column says. No password manager is used (PM-01, 2026-11-03): a value that is not yet in OpenBao or Jenkins is kept offline by you, never in this repository, the project folder or a chat. The values that never move into OpenBao (unseal key shares, admin passwords, CA passphrase) live in your safe place too (PM-02, 2026-11-04), the unseal shares with one offline copy (D-07). Update the row whenever a credential is created, rotated or revoked.
+Every account and credential of the project, by **name** — never a value (plan WP0.1). Values live in OpenBao, in Jenkins credentials (bootstrap identities only) or offline with you, as the "Stored in" column says. No password manager is used (PM-01, 2026-11-03; D-24): a value that is not yet in OpenBao or Jenkins is kept offline by you, never in this repository, the project folder or a chat. The values that never move into OpenBao (unseal key shares, admin passwords, CA passphrase) live in your safe place too (PM-02, 2026-11-04), the unseal shares with one offline copy (D-07). Update the row whenever a credential is created, rotated or revoked.
 
 Rotation periods follow plan sections 3.3 and 14: 90 days for tokens and AppRole secret IDs (OpenBao enforces it for the secret IDs), yearly for the Slack and GitHub App credentials.
 

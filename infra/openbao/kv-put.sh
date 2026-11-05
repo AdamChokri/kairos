@@ -13,7 +13,7 @@ path=$1; shift
 [[ $path == kv/* ]] || { echo "ERROR: the path must start with kv/ (got '$path')" >&2; exit 2; }
 command -v bao >/dev/null 2>&1 || { echo "ERROR: missing tool: bao" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "ERROR: missing tool: python3" >&2; exit 1; }
-bao token lookup >/dev/null 2>&1 || { echo "ERROR: no valid OpenBao token - run: bao login -method=userpass username=adam" >&2; exit 1; }
+bao token lookup >/dev/null 2>&1 || { echo "ERROR: no valid OpenBao token - run: bao login -no-print -method=userpass username=adam" >&2; exit 1; }
 
 # Fields and values travel to python3 on stdin, separated by the ASCII unit and record separators;
 # printf is a bash builtin, so no value appears in any process's argument list.

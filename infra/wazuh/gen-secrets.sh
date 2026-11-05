@@ -17,7 +17,7 @@ rotate=no
 for tool in bao htpasswd python3; do
   command -v "$tool" >/dev/null 2>&1 || { echo "ERROR: missing tool: $tool (htpasswd: sudo apt install apache2-utils)" >&2; exit 1; }
 done
-bao token lookup >/dev/null 2>&1 || { echo "ERROR: no valid OpenBao token - run: bao login -method=userpass username=adam" >&2; exit 1; }
+bao token lookup >/dev/null 2>&1 || { echo "ERROR: no valid OpenBao token - run: bao login -no-print -method=userpass username=adam" >&2; exit 1; }
 if bao kv get "$path" >/dev/null 2>&1 && [[ $rotate == no ]]; then
   echo "ERROR: $path already exists - use --rotate to replace every value" >&2
   exit 1

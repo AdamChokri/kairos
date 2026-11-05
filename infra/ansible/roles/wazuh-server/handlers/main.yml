@@ -1,0 +1,43 @@
+---
+# Loads kairos_internal_users.yml into the indexer's security index (Wazuh's documented procedure).
+- name: Reload the indexer security configuration
+  community.docker.docker_container_exec:
+    container: "{{ wazuh_project }}-wazuh.indexer-1"
+    env:
+      JAVA_HOME: /usr/share/wazuh-indexer/jdk
+    argv:
+      - bash
+      - /usr/share/wazuh-indexer/plugins/opensearch-security/tools/securityadmin.sh
+      - -cd
+      - /usr/share/wazuh-indexer/config/opensearch-security/
+      - -nhnv
+      - -cacert
+      - /usr/share/wazuh-indexer/config/certs/root-ca.pem
+      - -cert
+      - /usr/share/wazuh-indexer/config/certs/admin.pem
+      - -key
+      - /usr/share/wazuh-indexer/config/certs/admin-key.pem
+      - -p
+      - "9200"
+      - -icl
+  register: wazuh_securityadmin
+  retries: 10
+  delay: 15
+  until: wazuh_securityadmin.rc == 0
+  changed_when: true
+
+- name: Restart the Wazuh manager
+  community.docker.docker_compose_v2:
+    project_src: "{{ wazuh_dir }}"
+    project_name: "{{ wazuh_project }}"
+    files: [docker-compose.yml, docker-compose.override.yml]
+    services: [wazuh.manager]
+    state: restarted
+
+- name: Restart the Wazuh dashboard
+  community.docker.docker_compose_v2:
+    project_src: "{{ wazuh_dir }}"
+    project_name: "{{ wazuh_project }}"
+    files: [docker-compose.yml, docker-compose.override.yml]
+    services: [wazuh.dashboard]
+    state: restarted

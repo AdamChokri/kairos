@@ -1,0 +1,237 @@
+---
+# Role wazuh-server (plan WP1.6, D-15): wazuh-docker single-node on dso-siem, images by digest,
+# every default password replaced before the first start, password-protected agent enrollment,
+# Slack alerts from level 10, 14 days of index retention.
+# Upstream files are never edited (the checkout stays clean): Kairos's own files sit next to them
+# (kairos_*) and docker-compose.override.yml points the containers at those.
+- name: The Wazuh images are pinned by digest
+  ansible.builtin.assert:
+    that:
+      - item is search('@sha256:[0-9a-f]{64}$')
+      - item is not search('@sha256:0{64}$')
+    fail_msg: "Pin the images first: ci/tools/pin-images.sh"
+    quiet: true
+  loop:
+    - "{{ image_wazuh_manager }}"
+    - "{{ image_wazuh_indexer }}"
+    - "{{ image_wazuh_dashboard }}"
+    - "{{ image_wazuh_certs_generator }}"
+
+- name: The indexer's kernel limit is set
+  ansible.posix.sysctl:
+    name: vm.max_map_count
+    value: "262144"
+    sysctl_file: /etc/sysctl.d/60-kairos-wazuh.conf
+    state: present
+
+- name: The containers' names resolve on the VM itself, so API calls here check TLS properly
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "127.0.0.1 wazuh.indexer wazuh.dashboard"
+    regexp: '^127\.0\.0\.1\s+wazuh\.indexer'
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Git is installed
+  ansible.builtin.apt:
+    name: git
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: The wazuh-docker repository is checked out at the pinned tag
+  ansible.builtin.git:
+    repo: https://github.com/wazuh/wazuh-docker.git
+    dest: "{{ wazuh_docker_dir }}"
+    version: "v{{ wazuh_version }}"
+    single_branch: true   # no depth: a shallow clone at a tag fails on every rerun (E-25)
+  register: wazuh_checkout
+
+- name: The tag points to the pinned commit
+  ansible.builtin.assert:
+    that: wazuh_checkout.after == wazuh_docker_commit
+    fail_msg: "wazuh-docker v{{ wazuh_version }} is {{ wazuh_checkout.after }}, expected {{ wazuh_docker_commit }}"
+    quiet: true
+
+- name: The certificates are generated once
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - --env=CERT_TOOL_VERSION={{ wazuh_version.split('.')[0:2] | join('.') }}
+      - --volume={{ wazuh_certs_dir }}/:/certificates/
+      - --volume={{ wazuh_dir }}/config/certs.yml:/config/certs.yml:ro
+      - "{{ image_wazuh_certs_generator }}"
+    creates: "{{ wazuh_certs_dir }}/root-ca.pem"
+
+- name: The upstream manager configuration is read
+  ansible.builtin.slurp:
+    src: "{{ wazuh_dir }}/config/wazuh_cluster/wazuh_manager.conf"
+  register: wazuh_manager_upstream
+
+- name: Kairos's manager configuration - enrollment password on, Slack integration added
+  ansible.builtin.copy:
+    dest: "{{ wazuh_dir }}/config/wazuh_cluster/kairos_manager.conf"
+    content: >-
+      {{ wazuh_manager_upstream.content | b64decode
+         | regex_replace('<use_password>no</use_password>', '<use_password>yes</use_password>')
+         | regex_replace('(?s)^(.*?)(</ossec_config>)', '\1' ~ wazuh_slack_block ~ '\2') }}
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    wazuh_slack_block: |
+        <!-- Kairos (plan WP1.6): alerts of level {{ wazuh_alert_level }} and above to #kairos-secops -->
+        <integration>
+          <name>slack</name>
+          <hook_url>{{ secret_wazuh.slack_webhook }}</hook_url>
+          <level>{{ wazuh_alert_level }}</level>
+          <alert_format>json</alert_format>
+        </integration>
+  no_log: true
+  notify: Restart the Wazuh manager
+
+- name: Kairos's indexer users - only admin and kibanaserver, with their own hashes
+  ansible.builtin.template:
+    src: kairos_internal_users.yml.j2
+    dest: "{{ wazuh_dir }}/config/wazuh_indexer/kairos_internal_users.yml"
+    owner: "1000"
+    group: "1000"
+    mode: "0640"
+  no_log: true
+  notify: Reload the indexer security configuration
+
+- name: Kairos's dashboard connection to the manager API
+  ansible.builtin.template:
+    src: kairos_wazuh.yml.j2
+    dest: "{{ wazuh_dir }}/config/wazuh_dashboard/kairos_wazuh.yml"
+    owner: "1000"
+    group: "1000"
+    mode: "0640"
+  no_log: true
+  notify: Restart the Wazuh dashboard
+
+- name: The passwords Compose passes to the containers
+  ansible.builtin.copy:
+    dest: "{{ wazuh_dir }}/.env"
+    content: |
+      INDEXER_PASSWORD={{ secret_wazuh.indexer_admin_password }}
+      DASHBOARD_PASSWORD={{ secret_wazuh.dashboard_password }}
+      API_PASSWORD={{ secret_wazuh.api_password }}
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: The Compose override (images by digest, Kairos's files, passwords from .env)
+  ansible.builtin.template:
+    src: docker-compose.override.yml.j2
+    dest: "{{ wazuh_dir }}/docker-compose.override.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Wazuh runs
+  community.docker.docker_compose_v2:
+    project_src: "{{ wazuh_dir }}"
+    project_name: "{{ wazuh_project }}"
+    files: [docker-compose.yml, docker-compose.override.yml]
+    state: present
+  register: wazuh_compose
+
+- name: The indexer answers (before any password check)
+  ansible.builtin.uri:
+    url: https://wazuh.indexer:9200/
+    ca_path: "{{ wazuh_certs_dir }}/root-ca.pem"
+    status_code: [200, 401]
+  register: wazuh_indexer_port
+  until: wazuh_indexer_port.status in [200, 401]
+  retries: 40
+  delay: 10
+
+- name: Pending configuration reloads run now (new indexer users are loaded here)
+  ansible.builtin.meta: flush_handlers
+
+- name: The indexer accepts the admin password from OpenBao
+  ansible.builtin.uri:
+    url: https://wazuh.indexer:9200/
+    ca_path: "{{ wazuh_certs_dir }}/root-ca.pem"
+    url_username: admin
+    url_password: "{{ secret_wazuh.indexer_admin_password }}"
+    force_basic_auth: true
+  register: wazuh_indexer_up
+  until: wazuh_indexer_up.status == 200
+  retries: 20
+  delay: 10
+  no_log: true
+
+- name: The enrollment password the manager holds
+  community.docker.docker_container_exec:
+    container: "{{ wazuh_project }}-wazuh.manager-1"
+    argv: [sh, -c, "sha256sum /var/ossec/etc/authd.pass 2>/dev/null | cut -d' ' -f1"]
+  register: wazuh_authd_current
+  changed_when: false
+
+- name: The enrollment password is set (root:wazuh 0640, as Wazuh documents)
+  community.docker.docker_container_exec:
+    container: "{{ wazuh_project }}-wazuh.manager-1"
+    argv: [sh, -c, "umask 027 && cat > /var/ossec/etc/authd.pass && chown root:wazuh /var/ossec/etc/authd.pass && chmod 640 /var/ossec/etc/authd.pass"]
+    stdin: "{{ secret_wazuh.enrollment_password }}"
+  when: wazuh_authd_current.stdout != (secret_wazuh.enrollment_password ~ '\n') | hash('sha256')
+  no_log: true
+  notify: Restart the Wazuh manager
+
+- name: The retention policy exists
+  ansible.builtin.uri:
+    url: "https://wazuh.indexer:9200/_plugins/_ism/policies/kairos-retention"
+    ca_path: "{{ wazuh_certs_dir }}/root-ca.pem"
+    url_username: admin
+    url_password: "{{ secret_wazuh.indexer_admin_password }}"
+    force_basic_auth: true
+    status_code: [200, 404]
+  register: wazuh_ism
+  no_log: true
+
+- name: The retention policy is created (indices deleted after wazuh_retention_days)
+  ansible.builtin.uri:
+    url: "https://wazuh.indexer:9200/_plugins/_ism/policies/kairos-retention"
+    method: PUT
+    ca_path: "{{ wazuh_certs_dir }}/root-ca.pem"
+    url_username: admin
+    url_password: "{{ secret_wazuh.indexer_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body: "{{ lookup('ansible.builtin.template', 'ism-retention.json.j2') }}"
+    status_code: [200, 201]
+  when: wazuh_ism.status == 404
+  changed_when: true
+  no_log: true
+
+- name: Indices that already exist are put under the policy
+  ansible.builtin.uri:
+    url: "https://wazuh.indexer:9200/_plugins/_ism/add/wazuh-alerts-*,wazuh-archives-*,wazuh-monitoring-*,wazuh-statistics-*"
+    method: POST
+    ca_path: "{{ wazuh_certs_dir }}/root-ca.pem"
+    url_username: admin
+    url_password: "{{ secret_wazuh.indexer_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body: {policy_id: kairos-retention}
+  when: wazuh_ism.status == 404
+  changed_when: true
+  no_log: true
+
+- name: Pending restarts run now
+  ansible.builtin.meta: flush_handlers
+
+- name: The dashboard answers
+  ansible.builtin.uri:
+    url: https://wazuh.dashboard/app/login
+    ca_path: "{{ wazuh_certs_dir }}/root-ca.pem"
+    status_code: [200, 302]
+  register: wazuh_dashboard_up
+  until: wazuh_dashboard_up.status in [200, 302]
+  retries: 40
+  delay: 10

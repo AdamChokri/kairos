@@ -1,0 +1,9 @@
+---
+- name: Restart journald
+  ansible.builtin.systemd_service:
+    name: systemd-journald
+    state: restarted
+
+- name: Update CA certificates
+  ansible.builtin.command: update-ca-certificates
+  changed_when: true

@@ -1,0 +1,3 @@
+---
+jenkins_url: http://jenkins.kairos.lab:8080/
+jenkins_agent_home: "/var/lib/{{ jenkins_agent.user }}"

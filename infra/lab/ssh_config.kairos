@@ -1,0 +1,16 @@
+# infra/lab/ssh_config.kairos - SSH settings for the lab, included from ~/.ssh/config (WP1.1).
+# The VM names resolve through the hosts file (lab-hosts.txt); the OptiPlex is reached by address.
+Host dso-bao dso-jenkins dso-agent dso-sonar dso-siem dso-staging dso-prod 192.168.1.7?
+    User adam
+    IdentityFile ~/.ssh/kairos_admin
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+
+Host optiplex 192.168.1.34
+    HostName 192.168.1.34
+    User user
+    IdentityFile ~/.ssh/kairos_lab
+    IdentitiesOnly yes
+
+# Back to every host, for whatever follows this file's Include line in ~/.ssh/config.
+Host *

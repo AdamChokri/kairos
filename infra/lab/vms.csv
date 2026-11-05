@@ -1,0 +1,8 @@
+name,host,ip,mac,cpu,memory_gb,disk_gb,role
+dso-bao,legion,192.168.1.70,00155D7A0070,2,1,10,OpenBao
+dso-siem,legion,192.168.1.74,00155D7A0074,2,5,40,Wazuh
+dso-jenkins,optiplex,192.168.1.71,00155D7A0071,2,3,25,Jenkins controller and deploy agent
+dso-agent,optiplex,192.168.1.72,00155D7A0072,4,7,60,Jenkins build agent
+dso-sonar,optiplex,192.168.1.73,00155D7A0073,2,4,20,SonarQube
+dso-staging,legion,192.168.1.75,00155D7A0075,2,2,20,Kairos staging
+dso-prod,legion,192.168.1.76,00155D7A0076,2,2,20,Kairos production

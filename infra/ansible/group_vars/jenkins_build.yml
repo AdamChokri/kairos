@@ -1,0 +1,6 @@
+# The build agent on dso-agent (plan WP1.4, D-05): runs builds in Docker, holds no signing or deploy credential.
+jenkins_agent:
+  name: build-agent
+  user: jagent
+  docker: true
+  secret_field: build_secret

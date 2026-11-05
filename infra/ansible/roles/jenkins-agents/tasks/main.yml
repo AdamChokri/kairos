@@ -1,0 +1,180 @@
+---
+# Role jenkins-agents (plan WP1.4, D-05): an inbound WebSocket agent as a systemd service.
+# dso-agent: the build agent (user jagent, in the docker group, Docker Hub read-only login).
+# dso-jenkins: the deploy agent (user jdeploy, no Docker) with cosign, bao, testssl.sh and the
+# host keys of staging and production.
+# The agents must exist on the controller first (WP1.4) and their secrets be in OpenBao.
+- name: Java 21 and the agent's tools are installed
+  ansible.builtin.apt:
+    name: "{{ ['openjdk-21-jre-headless', 'curl', 'jq']
+              + ([] if jenkins_agent.docker else ['git', 'openssh-client', 'bsdextrautils', 'bind9-dnsutils']) }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: The agent account exists
+  ansible.builtin.user:
+    name: "{{ jenkins_agent.user }}"
+    system: true
+    home: "{{ jenkins_agent_home }}"
+    create_home: true
+    shell: /usr/sbin/nologin
+    groups: "{{ ['docker'] if jenkins_agent.docker else [] }}"
+    append: false
+
+- name: The agent's work folder exists
+  ansible.builtin.file:
+    path: "{{ jenkins_agent_home }}/work"
+    state: directory
+    owner: "{{ jenkins_agent.user }}"
+    group: "{{ jenkins_agent.user }}"
+    mode: "0750"
+
+- name: The agent's connection secret is in place (from OpenBao kv/infra/jenkins-agents)
+  ansible.builtin.copy:
+    dest: "{{ jenkins_agent_home }}/.agent-secret"
+    content: "{{ secret_jenkins_agents[jenkins_agent.secret_field] }}"
+    owner: "{{ jenkins_agent.user }}"
+    group: "{{ jenkins_agent.user }}"
+    mode: "0400"
+  no_log: true
+  notify: Restart the Jenkins agent
+
+- name: The agent's systemd unit is in place
+  ansible.builtin.template:
+    src: jenkins-agent.service.j2
+    dest: /etc/systemd/system/jenkins-agent.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart the Jenkins agent
+
+- name: The build agent pulls from Docker Hub with the read-only token
+  when: jenkins_agent.docker
+  community.docker.docker_login:
+    username: "{{ secret_dockerhub_ro.username }}"
+    password: "{{ secret_dockerhub_ro.token }}"
+    registry_url: https://index.docker.io/v1/
+  become: true
+  become_user: "{{ jenkins_agent.user }}"
+  no_log: true
+
+- name: Deploy agent tools
+  when: not jenkins_agent.docker
+  block:
+    - name: The cosign binary is installed at the pinned version (checksum verified)
+      ansible.builtin.get_url:
+        url: "https://github.com/sigstore/cosign/releases/download/v{{ cosign_version }}/cosign-linux-amd64"
+        dest: /usr/local/bin/cosign
+        checksum: "sha256:{{ cosign_sha256 }}"
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: The local package folder exists
+      ansible.builtin.file:
+        path: /var/cache/kairos
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: The verified OpenBao CLI archive is copied from WSL2
+      ansible.builtin.copy:
+        src: "{{ lab_build_dir }}/openbao/{{ openbao_version }}/openbao_{{ openbao_version }}_linux_amd64.tar.gz"
+        dest: "/var/cache/kairos/openbao_{{ openbao_version }}_linux_amd64.tar.gz"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: The archive has the checksum of the verified checksums.txt
+      ansible.builtin.stat:
+        path: "/var/cache/kairos/openbao_{{ openbao_version }}_linux_amd64.tar.gz"
+        checksum_algorithm: sha256
+      register: bao_archive_stat
+      failed_when: bao_archive_stat.stat.checksum != openbao_cli_tarball_sha256
+
+    - name: The bao CLI folder for this version exists
+      ansible.builtin.file:
+        path: "/usr/local/lib/openbao-{{ openbao_version }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: The bao CLI is unpacked from the verified archive
+      ansible.builtin.unarchive:
+        src: "/var/cache/kairos/openbao_{{ openbao_version }}_linux_amd64.tar.gz"
+        dest: "/usr/local/lib/openbao-{{ openbao_version }}"
+        remote_src: true
+        include: [bao]
+        creates: "/usr/local/lib/openbao-{{ openbao_version }}/bao"
+
+    - name: The bao on the PATH is the pinned version
+      ansible.builtin.file:
+        src: "/usr/local/lib/openbao-{{ openbao_version }}/bao"
+        dest: /usr/local/bin/bao
+        state: link
+        force: true
+
+    - name: The testssl.sh repository is checked out at the pinned tag
+      ansible.builtin.git:
+        repo: https://github.com/testssl/testssl.sh.git
+        dest: /opt/testssl.sh
+        version: "{{ testssl_version }}"
+        single_branch: true   # no depth: a shallow clone at a tag fails on every rerun (E-25)
+      register: testssl_checkout
+
+    - name: The tag points to the pinned commit
+      ansible.builtin.assert:
+        that: testssl_checkout.after == testssl_commit
+        fail_msg: "testssl.sh {{ testssl_version }} is {{ testssl_checkout.after }}, expected {{ testssl_commit }}"
+        quiet: true
+
+    - name: The testssl.sh script is on the PATH
+      ansible.builtin.file:
+        src: /opt/testssl.sh/testssl.sh
+        dest: /usr/local/bin/testssl.sh
+        state: link
+
+    - name: The host keys of staging and production are read from the hosts themselves
+      ansible.builtin.slurp:
+        src: /etc/ssh/ssh_host_ed25519_key.pub
+      delegate_to: "{{ item }}"
+      loop: [dso-staging, dso-prod]
+      register: runtime_host_keys
+
+    - name: The deploy agent's SSH folder exists
+      ansible.builtin.file:
+        path: "{{ jenkins_agent_home }}/.ssh"
+        state: directory
+        owner: "{{ jenkins_agent.user }}"
+        group: "{{ jenkins_agent.user }}"
+        mode: "0700"
+
+    - name: The deploy agent knows those host keys (no trust on first use)
+      ansible.builtin.known_hosts:
+        path: "{{ jenkins_agent_home }}/.ssh/known_hosts"
+        name: "{{ hostvars[item.item].ansible_host }}"
+        key: >-
+          {{ (lab_hosts_block | regex_search('(?m)^' ~ hostvars[item.item].ansible_host ~ '\s+(\S+)', '\1') | first) }},{{
+          hostvars[item.item].ansible_host }} {{ (item.content | b64decode).split()[:2] | join(' ') }}
+        state: present
+      loop: "{{ runtime_host_keys.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: The deploy agent's known_hosts belongs to it
+      ansible.builtin.file:
+        path: "{{ jenkins_agent_home }}/.ssh/known_hosts"
+        state: file
+        owner: "{{ jenkins_agent.user }}"
+        group: "{{ jenkins_agent.user }}"
+        mode: "0644"
+
+- name: The agent service is enabled and running
+  ansible.builtin.systemd_service:
+    name: jenkins-agent
+    enabled: true
+    state: started
+    daemon_reload: true

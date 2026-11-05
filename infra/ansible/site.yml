@@ -1,0 +1,52 @@
+---
+# infra/ansible/site.yml - the whole lab (plan P1). Each play carries the tag of its work package,
+# so a work package runs alone: ansible-playbook site.yml --tags <tag>
+#   base, docker (WP1.2) · openbao (WP1.3) · jenkins, jenkins-agents (WP1.4) · sonarqube (WP1.5) · wazuh (WP1.6)
+# Plays that read secrets need a valid OpenBao login in WSL2: bao login -method=userpass username=adam
+- name: Base system on every VM (WP1.2)
+  hosts: lab
+  become: true
+  tags: [base]
+  roles: [base]
+
+- name: Docker Engine on every VM but dso-bao (WP1.2)
+  hosts: docker_hosts
+  become: true
+  tags: [docker]
+  roles: [docker]
+
+- name: OpenBao on dso-bao (WP1.3)
+  hosts: openbao
+  become: true
+  tags: [openbao]
+  roles: [openbao]
+
+- name: Jenkins controller on dso-jenkins (WP1.4)
+  hosts: jenkins_controller
+  become: true
+  tags: [jenkins]
+  roles: [jenkins-controller]
+
+- name: Jenkins agents on dso-agent and dso-jenkins (WP1.4)
+  hosts: jenkins_build:jenkins_controller
+  become: true
+  tags: [jenkins-agents]
+  roles: [jenkins-agents]
+
+- name: SonarQube on dso-sonar (WP1.5)
+  hosts: sonarqube
+  become: true
+  tags: [sonarqube]
+  roles: [sonarqube]
+
+- name: Wazuh server on dso-siem (WP1.6)
+  hosts: wazuh_server
+  become: true
+  tags: [wazuh]
+  roles: [wazuh-server]
+
+- name: Wazuh agents on dso-bao and the runtime hosts (WP1.6)
+  hosts: wazuh_agents
+  become: true
+  tags: [wazuh]
+  roles: [wazuh-agent]

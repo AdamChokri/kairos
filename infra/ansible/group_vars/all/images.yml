@@ -1,0 +1,10 @@
+# infra/ansible/group_vars/all/images.yml - container images, always by digest (D-08, D-12).
+# A digest of zeros is a placeholder that the roles refuse: ci/tools/pin-images.sh resolves the
+# current digest of each tag below and writes it here (and into ci/jenkins/Dockerfile).
+# Update a tag, run the script, review the diff, open a pull request.
+image_sonarqube: "sonarqube:26.10.0.133078-community@sha256:f95aaa9016dd4e92c7d70691167a6d96dbb5d8acffd61eba1cb4335d364a7840"
+image_sonarqube_postgres: "postgres:17@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1"
+image_wazuh_manager: "wazuh/wazuh-manager:4.14.9@sha256:9d07740f780024600101d759ddab9a4413bdcb3412ccb81dccc143b3cdc702a2"
+image_wazuh_indexer: "wazuh/wazuh-indexer:4.14.9@sha256:08a8d5a0f0416bdd97ca421b1b72fae97224c8fd99a143500b28b536ff6ac98c"
+image_wazuh_dashboard: "wazuh/wazuh-dashboard:4.14.9@sha256:8c003c6e08151d962e2ed541a6a1a86ac723f01b5d5678fc53dcbe544e739e7a"
+image_wazuh_certs_generator: "wazuh/wazuh-certs-generator:0.0.4@sha256:369b4d58509aab074b188596870c81584f7120e653d9ef83c591f0f785dcf325"

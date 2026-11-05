@@ -1,0 +1,9 @@
+# kairos_wazuh.yml - managed by Ansible (infra/ansible/roles/wazuh-server), plan WP1.6.
+# The dashboard's connection to the manager API, with the API password from OpenBao.
+hosts:
+  - 1513629884013:
+      url: "https://wazuh.manager"
+      port: 55000
+      username: wazuh-wui
+      password: "{{ secret_wazuh.api_password }}"
+      run_as: true

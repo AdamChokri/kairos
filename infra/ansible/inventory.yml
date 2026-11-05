@@ -1,0 +1,60 @@
+# infra/ansible/inventory.yml - the lab VMs by role (plan section 3.1). Addresses are not repeated
+# here: each VM reads its own address from infra/lab/vms.csv, by its name written literally (E-24).
+# The name must be literal: a template on inventory_hostname would resolve to the ORIGINAL host
+# inside a delegated task (delegate_to), and connect to the wrong VM.
+all:
+  children:
+    lab:
+      hosts:
+        dso-bao:
+          ansible_host: "{{ lookup('ansible.builtin.csvfile', 'dso-bao', file=lab_dir ~ '/vms.csv', delimiter=',', col='2') }}"
+        dso-jenkins:
+          ansible_host: "{{ lookup('ansible.builtin.csvfile', 'dso-jenkins', file=lab_dir ~ '/vms.csv', delimiter=',', col='2') }}"
+        dso-agent:
+          ansible_host: "{{ lookup('ansible.builtin.csvfile', 'dso-agent', file=lab_dir ~ '/vms.csv', delimiter=',', col='2') }}"
+        dso-sonar:
+          ansible_host: "{{ lookup('ansible.builtin.csvfile', 'dso-sonar', file=lab_dir ~ '/vms.csv', delimiter=',', col='2') }}"
+        dso-siem:
+          ansible_host: "{{ lookup('ansible.builtin.csvfile', 'dso-siem', file=lab_dir ~ '/vms.csv', delimiter=',', col='2') }}"
+        dso-staging:
+          ansible_host: "{{ lookup('ansible.builtin.csvfile', 'dso-staging', file=lab_dir ~ '/vms.csv', delimiter=',', col='2') }}"
+        dso-prod:
+          ansible_host: "{{ lookup('ansible.builtin.csvfile', 'dso-prod', file=lab_dir ~ '/vms.csv', delimiter=',', col='2') }}"
+    openbao:
+      hosts:
+        dso-bao:
+    jenkins_controller:
+      hosts:
+        dso-jenkins:
+    jenkins_build:
+      hosts:
+        dso-agent:
+    sonarqube:
+      hosts:
+        dso-sonar:
+    wazuh_server:
+      hosts:
+        dso-siem:
+    runtime:
+      hosts:
+        dso-staging:
+        dso-prod:
+    # Every VM but dso-bao runs Docker (WP1.2).
+    docker_hosts:
+      children:
+        jenkins_controller:
+        jenkins_build:
+        sonarqube:
+        wazuh_server:
+        runtime:
+    # Tool VMs: their published ports sit behind the DOCKER-USER allow-list from P1 (section 3.1).
+    tool_vms:
+      children:
+        jenkins_controller:
+        sonarqube:
+        wazuh_server:
+    # Hosts with a Wazuh agent (WP1.6).
+    wazuh_agents:
+      children:
+        openbao:
+        runtime:

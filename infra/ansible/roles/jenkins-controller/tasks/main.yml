@@ -1,0 +1,82 @@
+---
+# Role jenkins-controller (plan WP1.4, D-01): the controller image from ci/jenkins, built on
+# dso-jenkins, run with Docker Compose. First boot goes through the setup wizard on purpose (as-is).
+- name: The base image in ci/jenkins/Dockerfile is pinned by digest
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.file', jenkins_src ~ '/Dockerfile') is search('(?m)^FROM \S+@sha256:[0-9a-f]{64}$')
+      - lookup('ansible.builtin.file', jenkins_src ~ '/Dockerfile') is not search('@sha256:0{64}')
+    fail_msg: "Pin the base image first: ci/tools/pin-images.sh image_jenkins_base"
+    quiet: true
+
+- name: The build context folders exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ jenkins_dir }}"
+    - "{{ jenkins_dir }}/build"
+    - "{{ jenkins_dir }}/build/init.groovy.d"
+
+- name: The build context is copied from ci/jenkins, with the lab CA certificate
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ jenkins_dir }}/build/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - {src: "{{ jenkins_src }}/Dockerfile", dest: Dockerfile}
+    - {src: "{{ jenkins_src }}/plugins.txt", dest: plugins.txt}
+    - {src: "{{ lab_ca_cert }}", dest: kairos-lab-ca.crt}
+    - {src: "{{ jenkins_src }}/init.groovy.d/executors.groovy.override", dest: init.groovy.d/executors.groovy.override}
+
+- name: The image tag is the hash of the build context, so any change builds a new image
+  ansible.builtin.set_fact:
+    jenkins_image_tag: >-
+      {{ (lookup('ansible.builtin.file', jenkins_src ~ '/Dockerfile')
+          ~ lookup('ansible.builtin.file', jenkins_src ~ '/plugins.txt')
+          ~ lookup('ansible.builtin.file', jenkins_src ~ '/init.groovy.d/executors.groovy.override')
+          ~ lookup('ansible.builtin.file', lab_ca_cert)) | hash('sha256') | truncate(16, true, '') }}
+
+- name: The controller image is built (only when its tag does not exist yet)
+  community.docker.docker_image_build:
+    name: kairos/jenkins-controller
+    tag: "{{ jenkins_image_tag }}"
+    path: "{{ jenkins_dir }}/build"
+    pull: true
+
+- name: The image tag in use is recorded (ci/jenkins/pin-plugins.sh reads it)
+  ansible.builtin.copy:
+    dest: "{{ jenkins_dir }}/image-tag"
+    content: "{{ jenkins_image_tag }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: The Compose file is in place
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ jenkins_dir }}/compose.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: The controller runs
+  community.docker.docker_compose_v2:
+    project_src: "{{ jenkins_dir }}"
+    project_name: jenkins
+    state: present
+    pull: never
+
+- name: The controller answers on port 8080
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8080/login
+    status_code: [200, 403]
+  register: jenkins_up
+  until: jenkins_up.status in [200, 403]
+  retries: 30
+  delay: 5

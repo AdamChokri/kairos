@@ -1,0 +1,98 @@
+---
+# Role docker (plan WP1.2): Docker Engine from Docker's apt repository on every VM but dso-bao;
+# on the tool VMs, the DOCKER-USER allow-list of plan section 3.1.
+- name: Docker's apt repository is configured
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: https://download.docker.com/linux/ubuntu
+    suites: ["{{ ansible_facts['distribution_release'] }}"]
+    components: [stable]
+    architectures: [amd64]
+    signed_by: https://download.docker.com/linux/ubuntu/gpg
+
+- name: Docker Engine and its plugins are installed
+  ansible.builtin.apt:
+    name: [docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin]
+    state: present
+    update_cache: true
+
+- name: Docker's configuration folder exists
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Docker rotates container logs and keeps containers running across daemon restarts
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: "{{ docker_daemon_config | to_nice_json }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    docker_daemon_config:
+      log-driver: json-file
+      log-opts: {max-size: "10m", max-file: "3"}
+      live-restore: true
+  notify: Restart docker
+
+- name: Docker is enabled and running
+  ansible.builtin.systemd_service:
+    name: docker
+    enabled: true
+    state: started
+
+- name: DOCKER-USER allow-list on the tool VMs
+  when: docker_allow is defined
+  block:
+    - name: IPv6 is off on the LAN interface, so the IPv4 allow-list cannot be bypassed
+      ansible.posix.sysctl:
+        name: "net.ipv6.conf.{{ lab_interface }}.disable_ipv6"
+        value: "1"
+        sysctl_file: /etc/sysctl.d/60-kairos-docker-allowlist.conf
+        state: present
+
+    - name: The allow-list script is installed
+      ansible.builtin.template:
+        src: kairos-docker-allowlist.sh.j2
+        dest: /usr/local/sbin/kairos-docker-allowlist
+        owner: root
+        group: root
+        mode: "0755"
+      notify: Apply the DOCKER-USER allow-list
+
+    - name: The systemd drop-in folder for Docker exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/docker.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Docker applies the allow-list before and after it starts
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/docker.service.d/10-kairos-allowlist.conf
+        content: |
+          # Managed by Ansible (infra/ansible/roles/docker). Before: the rules exist before any
+          # container can publish a port. After: they are checked again once Docker has started.
+          [Service]
+          ExecStartPre=/usr/local/sbin/kairos-docker-allowlist
+          ExecStartPost=/usr/local/sbin/kairos-docker-allowlist
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload systemd
+
+    - name: The allow-list is in force now
+      ansible.builtin.command: /usr/local/sbin/kairos-docker-allowlist --check
+      register: docker_allowlist_check
+      changed_when: false
+      failed_when: false
+
+    - name: The allow-list is applied when it is missing
+      ansible.builtin.command: /usr/local/sbin/kairos-docker-allowlist
+      when: docker_allowlist_check.rc != 0
+      changed_when: true

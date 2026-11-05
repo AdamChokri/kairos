@@ -1,0 +1,68 @@
+---
+# Role sonarqube (plan WP1.5, D-09): SonarQube Community Build and PostgreSQL 17 with Docker Compose
+# on dso-sonar, images by digest, kernel limits SonarQube's search engine needs, heaps sized for 4 GB.
+- name: Both images are pinned by digest
+  ansible.builtin.assert:
+    that:
+      - item is search('@sha256:[0-9a-f]{64}$')
+      - item is not search('@sha256:0{64}$')
+    fail_msg: "Pin the images first: ci/tools/pin-images.sh image_sonarqube image_sonarqube_postgres"
+    quiet: true
+  loop: ["{{ image_sonarqube }}", "{{ image_sonarqube_postgres }}"]
+
+- name: Kernel limits for SonarQube's embedded search engine
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/60-kairos-sonarqube.conf
+    state: present
+  loop:
+    - {name: vm.max_map_count, value: "524288"}
+    - {name: fs.file-max, value: "131072"}
+
+- name: The SonarQube folder exists
+  ansible.builtin.file:
+    path: /opt/sonarqube
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: The database password is generated on the VM once and never leaves it
+  ansible.builtin.shell:
+    cmd: |
+      set -eu
+      umask 0377
+      pw=$(openssl rand -hex 24)
+      printf 'POSTGRES_PASSWORD=%s\nSONAR_JDBC_PASSWORD=%s\n' "$pw" "$pw" > /opt/sonarqube/db.env
+    creates: /opt/sonarqube/db.env
+
+- name: The password file is readable by root only
+  ansible.builtin.file:
+    path: /opt/sonarqube/db.env
+    owner: root
+    group: root
+    mode: "0400"
+
+- name: The Compose file is in place
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: /opt/sonarqube/compose.yaml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: SonarQube and its database run
+  community.docker.docker_compose_v2:
+    project_src: /opt/sonarqube
+    project_name: sonarqube
+    state: present
+
+- name: SonarQube reports status UP
+  ansible.builtin.uri:
+    url: http://127.0.0.1:9000/api/system/status
+    return_content: true
+  register: sonarqube_status
+  until: sonarqube_status.json is defined and sonarqube_status.json.status == 'UP'
+  retries: 60
+  delay: 10

@@ -1,0 +1,41 @@
+#!/bin/sh
+# /usr/local/sbin/kairos-docker-allowlist - managed by Ansible (infra/ansible/roles/docker).
+# Plan section 3.1: Docker bypasses UFW, so the ports this VM publishes are filtered in Docker's
+# DOCKER-USER chain. Docker rewrites the destination before DOCKER-USER sees a packet, so the
+# rules match the port a client asked for through conntrack (--ctorigdstport), and only packets in
+# the original direction (--ctdir ORIGINAL), so replies to the containers' own outbound
+# connections are never touched. Idempotent: the KAIROS-ALLOW chain is rebuilt on every run.
+# The rules are IPv4 only, so IPv6 is switched off on the LAN interface first (E-09): otherwise a
+# published port would also answer on the VM's IPv6 addresses, outside the allow-list. It is done
+# here, on every Docker start (ExecStartPre), and not only through /etc/sysctl.d, because on the
+# lab's Hyper-V network interface the sysctl.d setting was not in force after a boot (E-29).
+#   --check  exit 0 if IPv6 is off and the rules in force match this file, 1 otherwise (changes nothing)
+set -eu
+CHAIN=KAIROS-ALLOW
+IFACE={{ lab_interface }}
+
+rules() {
+{% for rule in docker_allow %}
+{% for src in rule.sources %}
+  echo "-A $CHAIN -s {{ src }}/32 -p {{ rule.proto }} -m conntrack --ctorigdstport {{ rule.port }} --ctdir ORIGINAL -j RETURN"
+{% endfor %}
+  echo "-A $CHAIN -p {{ rule.proto }} -m conntrack --ctorigdstport {{ rule.port }} --ctdir ORIGINAL -j DROP"
+{% endfor %}
+}
+
+if [ "${1:-}" = "--check" ]; then
+  [ "$(sysctl -n "net.ipv6.conf.$IFACE.disable_ipv6" 2>/dev/null)" = 1 ] || exit 1
+  [ "$(iptables -S "$CHAIN" 2>/dev/null | grep -v "^-N $CHAIN\$")" = "$(rules)" ] || exit 1
+  iptables -C DOCKER-USER -i "$IFACE" -j "$CHAIN" 2>/dev/null || exit 1
+  exit 0
+fi
+
+sysctl -qw "net.ipv6.conf.$IFACE.disable_ipv6=1"
+iptables -N DOCKER-USER 2>/dev/null || true
+iptables -N "$CHAIN" 2>/dev/null || true
+iptables -F "$CHAIN"
+rules | while read -r line; do
+  # shellcheck disable=SC2086  # each line is a list of iptables arguments
+  iptables $line
+done
+iptables -C DOCKER-USER -i "$IFACE" -j "$CHAIN" 2>/dev/null || iptables -I DOCKER-USER 1 -i "$IFACE" -j "$CHAIN"

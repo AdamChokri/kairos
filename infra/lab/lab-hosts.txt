@@ -1,0 +1,9 @@
+# BEGIN kairos-lab - managed from infra/lab/lab-hosts.txt (plan section 3.1); edit there, not here
+192.168.1.70  openbao.kairos.lab dso-bao
+192.168.1.71  jenkins.kairos.lab jenkins-res.kairos.lab dso-jenkins
+192.168.1.72  agent.kairos.lab dso-agent
+192.168.1.73  sonar.kairos.lab dso-sonar
+192.168.1.74  wazuh.kairos.lab dso-siem
+192.168.1.75  staging.kairos.lab dso-staging
+192.168.1.76  prod.kairos.lab dso-prod
+# END kairos-lab

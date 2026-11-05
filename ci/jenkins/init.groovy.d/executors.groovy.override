@@ -1,0 +1,5 @@
+// ci/jenkins/init.groovy.d/executors.groovy.override - runs at every controller start (plan WP1.4).
+// The built-in node runs no builds: every build runs on an agent (D-05).
+import jenkins.model.Jenkins
+
+Jenkins.get().setNumExecutors(0)

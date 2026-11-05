@@ -1,0 +1,5 @@
+---
+openbao_deb_name: "openbao_{{ openbao_version }}_linux_amd64.deb"
+openbao_deb_local: "{{ lab_build_dir }}/openbao/{{ openbao_version }}/{{ openbao_deb_name }}"
+openbao_cert_local: "{{ lab_pki_dir }}/issued/openbao.kairos.lab.crt"
+openbao_key_local: "{{ lab_pki_dir }}/issued/openbao.kairos.lab.key"

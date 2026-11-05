@@ -1,0 +1,10 @@
+# infra/openbao/approles.tsv - one AppRole per line, applied by apply.sh (tab-separated).
+# Each role is bound to its VM's address from infra/lab/vms.csv, for the secret ID
+# (secret_id_bound_cidrs) and for the tokens it issues (token_bound_cidrs).
+# secret_id_ttl 2160h = 90 days: the rotation period of plan section 14 is enforced, not just written down.
+# role	vm	policy	token_ttl	token_max_ttl	secret_id_ttl
+jenkins-build	dso-jenkins	jenkins-build	15m	15m	2160h
+jenkins-deploy	dso-jenkins	jenkins-deploy	15m	15m	2160h
+jenkins-signer	dso-jenkins	jenkins-signer	15m	15m	2160h
+kairos-staging	dso-staging	kairos-staging	1h	4h	2160h
+kairos-prod	dso-prod	kairos-prod	1h	4h	2160h

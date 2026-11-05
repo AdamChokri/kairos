@@ -1,0 +1,8 @@
+# dso-bao (WP1.3): who may reach OpenBao and SSH, enforced by UFW (OpenBao runs natively, not in Docker).
+openbao_api_sources:
+  - "{{ legion_address }}"
+  - "{{ hostvars['dso-jenkins'].ansible_host }}"
+  - "{{ hostvars['dso-staging'].ansible_host }}"
+  - "{{ hostvars['dso-prod'].ansible_host }}"
+ssh_sources:
+  - "{{ legion_address }}"

@@ -1,0 +1,20 @@
+# infra/ansible/group_vars/all/main.yml - lab-wide settings (plan section 3.1).
+# Addresses come from infra/lab/vms.csv and hosts.csv: one description of the lab, no copy here.
+lab_dir: "{{ inventory_dir }}/../lab"
+# Each VM's ansible_host is set in inventory.yml, by its literal name (E-24).
+legion_address: "{{ lookup('ansible.builtin.csvfile', 'legion', file=lab_dir ~ '/hosts.csv', delimiter=',', col='1') }}"
+
+lab_admin_user: adam
+lab_admin_pubkey: "{{ lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'HOME') ~ '/.ssh/kairos_admin.pub') }}"
+lab_timezone: Etc/UTC
+lab_hosts_block: "{{ lookup('ansible.builtin.file', lab_dir ~ '/lab-hosts.txt') }}"
+
+# Lab CA (WP1.1): the certificate is in the repository; keys issued from it stay in ~/.kairos-pki.
+lab_ca_cert: "{{ inventory_dir }}/../pki/kairos-lab-ca.crt"
+lab_pki_dir: "{{ lookup('ansible.builtin.env', 'HOME') }}/.kairos-pki"
+# The Legion's project folder as WSL2 sees it (LAB_ROOT_LEGION in infra/lab/provision.conf):
+# verified downloads (infra/openbao/fetch-release.sh) are read from there.
+lab_build_dir: "{{ lookup('ansible.builtin.env', 'LAB_HOME_WSL') | default('/mnt/d/Projects/Kairos', true) }}"
+
+# The lab LAN interface on every VM (cloud-init's network-config names it eth0).
+lab_interface: eth0

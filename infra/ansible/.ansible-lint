@@ -1,0 +1,7 @@
+# infra/ansible/.ansible-lint - run from infra/ansible: ansible-lint
+profile: production
+skip_list:
+  # Role names follow the plan's repository layout (Appendix A), which uses hyphens.
+  - role-name
+exclude_paths:
+  - .cache/

@@ -1,0 +1,5 @@
+# Published ports of dso-sonar and who may reach them (plan section 3.1, DOCKER-USER allow-list).
+docker_allow:
+  - port: 9000
+    proto: tcp
+    sources: ["{{ legion_address }}", "{{ hostvars['dso-agent'].ansible_host }}"]

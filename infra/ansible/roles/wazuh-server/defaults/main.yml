@@ -1,0 +1,7 @@
+---
+wazuh_docker_dir: /opt/wazuh-docker
+wazuh_dir: "{{ wazuh_docker_dir }}/single-node"
+wazuh_project: wazuh
+wazuh_certs_dir: "{{ wazuh_dir }}/config/wazuh_indexer_ssl_certs"
+wazuh_alert_level: 10
+wazuh_retention_days: 14

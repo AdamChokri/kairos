@@ -1,0 +1,80 @@
+---
+# Role base (plan WP1.2): every VM - admin key, time, updates, journald, lab names, lab CA.
+- name: The admin account keeps exactly the lab admin key
+  ansible.posix.authorized_key:
+    user: "{{ lab_admin_user }}"
+    key: "{{ lab_admin_pubkey }}"
+    exclusive: true
+
+- name: The golden image's installer account is gone
+  ansible.builtin.user:
+    name: builder
+    state: absent
+    remove: true
+
+- name: Base packages are installed
+  ansible.builtin.apt:
+    name: [ca-certificates, curl, jq, python3-debian, python3-requests, systemd-timesyncd, unattended-upgrades]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: The clock runs on UTC
+  community.general.timezone:
+    name: "{{ lab_timezone }}"
+
+- name: Time is synchronised by systemd-timesyncd
+  ansible.builtin.systemd_service:
+    name: systemd-timesyncd
+    enabled: true
+    state: started
+
+- name: Security updates install automatically (no automatic reboot)
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      // Managed by Ansible (infra/ansible/roles/base).
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: The journald drop-in folder exists (a minimized image has none)
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: The journal is kept on disk across reboots
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/10-kairos.conf
+    content: |
+      # Managed by Ansible (infra/ansible/roles/base).
+      [Journal]
+      Storage=persistent
+      SystemMaxUse=500M
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart journald
+
+- name: The lab names are in /etc/hosts (from infra/lab/lab-hosts.txt)
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    marker: "# {mark} kairos-lab - managed by Ansible from infra/lab/lab-hosts.txt"
+    block: "{{ lab_hosts_block.splitlines()[1:-1] | join('\n') }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: The lab CA is trusted by the system
+  ansible.builtin.copy:
+    src: "{{ lab_ca_cert }}"
+    dest: /usr/local/share/ca-certificates/kairos-lab-ca.crt
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Update CA certificates

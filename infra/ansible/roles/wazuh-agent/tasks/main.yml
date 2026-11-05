@@ -1,0 +1,47 @@
+---
+# Role wazuh-agent (plan WP1.6, D-15): the Wazuh agent on dso-bao, staging and production, at the
+# manager's version, enrolling with the password; SCA (CIS Ubuntu 24.04) and file integrity
+# monitoring are on in the agent's default configuration.
+- name: Wazuh's apt repository is configured
+  ansible.builtin.deb822_repository:
+    name: wazuh
+    types: [deb]
+    uris: https://packages.wazuh.com/4.x/apt/
+    suites: [stable]
+    components: [main]
+    signed_by: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+
+- name: The agent is installed at the manager's version
+  ansible.builtin.apt:
+    name: "wazuh-agent={{ wazuh_agent_package_version }}"
+    state: present
+    update_cache: true
+
+- name: The agent stays at that version until the manager moves
+  ansible.builtin.dpkg_selections:
+    name: wazuh-agent
+    selection: hold
+
+- name: The agent reports to dso-siem
+  ansible.builtin.replace:
+    path: /var/ossec/etc/ossec.conf
+    regexp: '<address>[^<]*</address>'
+    replace: "<address>{{ hostvars['dso-siem'].ansible_host }}</address>"
+  notify: Restart the Wazuh agent
+
+- name: The agent enrolls with the enrollment password (root:wazuh 0640)
+  ansible.builtin.copy:
+    dest: /var/ossec/etc/authd.pass
+    content: "{{ secret_wazuh.enrollment_password }}\n"
+    owner: root
+    group: wazuh
+    mode: "0640"
+  no_log: true
+  notify: Restart the Wazuh agent
+
+- name: The agent is enabled and running
+  ansible.builtin.systemd_service:
+    name: wazuh-agent
+    enabled: true
+    state: started
+    daemon_reload: true

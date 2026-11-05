@@ -24,7 +24,7 @@ Rotation periods follow plan sections 3.3 and 14: 90 days for tokens and AppRole
 | Jenkins `admin` | Account | Break-glass administrator | Your safe place | 2026-11-04 | 2027-11-04 |
 | Jenkins agent secrets (`build-agent`, `deploy-agent`) | Agent secrets | Connect one agent each | OpenBao `kv/infra/jenkins-agents`; on each agent VM, 0400 (`.agent-secret`) | 2026-11-04 | When the node is recreated |
 | GitHub App `kairos-jenkins-adamchokri` | App private key (PKCS#8) | Installed on `AdamChokri/kairos` only, webhook off: contents, metadata, pull requests read; commit statuses read & write | Jenkins credential `github-app`; the downloaded key and the converted copy are shredded | 2026-11-04 | 2027-11-04 |
-| SonarQube `admin` | Account | Administrator | Your safe place | | Yearly |
-| SonarQube `kairos-ci` | Analysis token | Project `kairos` | OpenBao `kv/ci/sonarqube` (WP1.5) | | 90 days |
+| SonarQube `admin` | Account | Administrator | Your safe place | 2026-11-05 | 2027-11-05 |
+| SonarQube `kairos-ci` | Project analysis token | Analysis of project `kairos` only | OpenBao `kv/ci/sonarqube` | 2026-11-05 | 2027-02-03 (expires) |
 | Wazuh indexer `admin`, `kibanaserver`, API `wazuh-wui`, enrollment password | Passwords | Wazuh internals and the dashboard login | OpenBao `kv/infra/wazuh` (WP1.6) | | Yearly |
 | DeepSeek API keys (staging, production) | API keys | Kairos Assist | OpenBao `kv/kairos/staging/llm`, `kv/kairos/prod/llm` (WP4.7) | | 90 days |

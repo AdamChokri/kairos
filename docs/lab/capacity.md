@@ -29,8 +29,9 @@ Measured on 2026-11-04 with `infra/lab/host-report.sh optiplex`, the host's othe
 
 | ID | What | When | Action | Closes when |
 |---|---|---|---|---|
-| CAP-01 | `infra/lab/host-report.sh optiplex`, C: free recorded in the log below | At the start of every phase | C: below 25 GB free → move `dso-sonar` to the Legion through `infra/lab/vms.csv` (Legion: 14 GB of VMs, 5 GB left; 110 of 175 GB) | `worker-1` and `worker-2` are gone and the ceiling is measured above 105 GB |
+| CAP-01 | `infra/lab/host-report.sh optiplex`, C: free recorded in the log below | At the start of every phase | C: below 25 GB free → move `dso-sonar` to the Legion through `infra/lab/vms.csv` (Legion: 14 GB of VMs, 5 GB left; 110 of 175 GB) — **not possible on RAM since CAP-03 (2026-11-05)**: the action is decided again when C: reaches 25 GB | `worker-1` and `worker-2` are gone and the ceiling is measured above 105 GB |
 | CAP-02 | `infra/lab/host-report.sh legion`: the growth room of the Legion's own VMs | Before any CAP-01 move | Check the move against the full E-10 rule on the Legion | Measured once |
+| CAP-03 | Legion RAM with the lab running: 12,741 MB available at start, 2,501 MB left once the lab runs (plan: 4,096); the largest listed processes are `brave`, `Discord` and the NVIDIA overlays, `vmmemWSL` 0.5 GB | `make lab-up` warning, 2026-11-05 | None: the four Legion VMs hold 10 GB at their full assigned size, so this is their steady state. The OptiPlex has about 15 GB of RAM to spare (29,357 MB available, 14,336 MB needed), so a VM can move there through `vms.csv` if needed | Closed by the owner, 2026-11-05 |
 
 **CAP-01 log**
 

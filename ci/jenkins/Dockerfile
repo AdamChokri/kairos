@@ -13,8 +13,8 @@ RUN update-ca-certificates \
       -alias kairos-lab-ca -file /usr/local/share/ca-certificates/kairos-lab-ca.crt
 USER 1000:1000
 
-COPY --chown=jenkins:jenkins plugins.txt /usr/share/jenkins/ref/plugins.txt
+COPY --chown=root:root --chmod=644 plugins.txt /usr/share/jenkins/ref/plugins.txt
 RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt
 
 # Groovy scripts run at every start; ".override" makes Jenkins refresh them from the image.
-COPY --chown=jenkins:jenkins init.groovy.d/ /usr/share/jenkins/ref/init.groovy.d/
+COPY --chown=root:root --chmod=755 init.groovy.d/ /usr/share/jenkins/ref/init.groovy.d/

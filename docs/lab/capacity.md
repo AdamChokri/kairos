@@ -39,6 +39,7 @@ Measured on 2026-11-04 with `infra/lab/host-report.sh optiplex`, the host's othe
 |---|---|---|---|---|
 | 2026-11-04 | P0 (WP0.2) | 94.4 | 51.1 | none (baseline) |
 | 2026-11-06 | P2 (WP2.1) | 66.5 | 132.5 | none |
+| 2026-11-06 | P3 (WP3.1) | 62.0 | 128.0 | none |
 
 ## Reachability
 

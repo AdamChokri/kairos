@@ -1,0 +1,7 @@
+---
+# as_is_state: present  builds the practices of the as-is phase (plan P2: SV-10 and SV-11);
+# as_is_state: absent   removes them again. WP5.3 (staging), WP6.1 (production) and WP7.1 run the
+# role with absent when their replacements exist: ansible-playbook site.yml --tags as-is -e as_is_state=absent
+as_is_state: present
+as_is_deploy_user: deploy
+as_is_app_dir: /opt/kairos

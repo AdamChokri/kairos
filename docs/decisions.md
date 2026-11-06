@@ -142,3 +142,35 @@ Jenkins accounts `admin` (Platform Admin, break-glass only), `adam` (Developer a
 *Rule kept:* `.gitleaks.toml` holds only format-level false positives of generated, non-secret files, each with its reason; it is reviewed in pull requests like code, and `ci/scripts/secrets_scan.sh` and the hook use it (no other `--config`).
 *Alternative:* `.gitleaksignore` fingerprints under exception IDs (above).
 *Pull request:* the P1 pull request (`feat/p1-lab`)
+
+🧭 **D-24 — No password manager: every secret that is not in OpenBao or Jenkins lives in the owner's safe place, and every step that creates or asks for a secret carries a banner** · 2026-11-03 · supersedes the operations line of D-07 ("kept in your password manager") and nothing else in it
+*Why:* the owner has no password manager (PM-01, 2026-11-03). The values that never move into OpenBao — the unseal key shares, the administrator passwords of OpenBao, Jenkins and SonarQube, the lab CA passphrase — therefore live in a safe place the owner controls (PM-02, 2026-11-04), the three unseal shares with one more, offline copy. D-07's rules are unchanged: OpenBao stays the single store for pipeline and runtime secrets.
+*How:* before each step that creates or asks for a secret, a banner names the value exactly as it is saved, says when it appears and how long to keep it; a value that is only re-used, and a value that can be thrown away, each have their own banner. Secrets travel through hidden prompts, stdin or the clipboard, never on the screen, in a command line or in a chat, and a value that leaks is revoked or rotated at once. `docs/runbooks/accounts.md` and the scripts say "safe place".
+*Alternative:* a password manager — not available to the owner (PM-01); a project file or the repository — never, the repository is public.
+*Pull request:* the P2 pull request (`feat/p2-app`)
+
+🧭 **D-25 — The unit tests run on SQLite; the real PostgreSQL 17 is exercised by the smoke test** · 2026-11-05 · adds to WP2.1
+*Why:* the plan asks for pytest unit tests and for PostgreSQL 17 as the database, and does not say where the tests run. A suite that needs a database service is slower, asks more of the as-is pipeline's test stage, and fails for reasons that are not the code's.
+*How:* `backend/tests/conftest.py` sets `DATABASE_URL=sqlite://` before the application is imported (in memory, a fresh schema for every test). `ci/as-is/smoke.sh` walks every endpoint against the Compose stack's PostgreSQL 17 on the Legion (WP2.1) and against staging and production (WP2.2). SV-02 uses `lower() LIKE lower()` so that both databases run it (E-30); its static detection (Bandit B608, the Semgrep rule) does not depend on the database.
+*Cost:* a behaviour that only PostgreSQL has is seen by the smoke test, not by the unit tests.
+*Alternative:* a PostgreSQL service container in the test stage (WP4.2 may add one to the to-be pipeline) · `testcontainers`.
+*Pull request:* the P2 pull request (`feat/p2-app`)
+
+🧭 **D-26 — Seeded secrets are accepted at commit time by an exact list, never by an ignore file or a wider configuration** · 2026-11-05 · adds to D-23 and E-11
+*Found (WP2.1):* SV-01 puts two fake secrets in the repository on purpose (`backend/app/config.py` and `deploy/.env`). Gitleaks reports each as `generic-api-key`, so the commit-time scan fails on the commit that adds them.
+*How:* `ci/tools/commit-scan.sh` runs the pinned Gitleaks with `.gitleaks.toml` on the staged changes and compares the findings with `security/seeded-secrets.tsv` (file, rule, one finding each). A finding outside the list, a listed file staged without its finding, or a second finding in a listed file blocks. The P3 hook runs the same script. WP4.5 fixes SV-01 and deletes the list.
+*Why not the usual ways:* `.gitleaksignore` fingerprints carry line numbers and, in history scans, the commit (D-23's reasoning); `.gitleaks.toml` is reserved by D-23 for false positives that come from a file's format, and a seeded weakness is content that WP8.1 must be able to find; an inline `gitleaks:allow` marker would blind the scanner exactly where it has to look.
+*Alternative:* any of those three.
+*Pull request:* the P2 pull request (`feat/p2-app`)
+
+🧭 **D-28 — The as-is practices are code, with a removal switch** · 2026-11-05 · adds to WP2.2
+*Why:* the as-is state is the *before* of the project, and WP8.1 runs it again on purpose. The hardening work packages must be able to remove each practice cleanly, and the lab stays idempotent.
+*How:* `infra/ansible/roles/as-is` (tag `as-is`): `sshpass` on the build agent; on staging and production the `deploy` account with a password read from OpenBao (`kv/infra/as-is-deploy`), SSH password logins through `/etc/ssh/sshd_config.d/10-kairos-as-is.conf`, the application folder, and an assertion that `sshd -T` agrees with the state. `-e as_is_state=absent` removes them (the stack stopped, the folder, the account, the drop-in); WP5.3 (staging), WP6.1 (production) and WP7.1 use it. The job `kairos-as-is` stays for WP8.1, its Docker Hub token until WP4.1.
+*Alternative:* accounts and settings made by hand (not reproducible, not removable by code).
+*Pull request:* the P2 pull request (`feat/p2-app`)
+
+🧭 **D-30 — The Node image pin is kept after its tag was republished** · 2026-11-06 · adds to D-12
+*Found (WP2.1, step 2.1.5):* the check of `ci/tools/node-image.txt` showed that the tag `node:26.13.0-slim` had been republished on 2026-11-05: the pinned digest `sha256:e4db4c91…a02c39` was no longer the one the tag serves.
+*How:* the pinned digest stays, because it is still pullable (proved) and D-12 says a new version or rebuild waits 7 days and arrives in its own pull request. The re-pin is the tracked item NODE-01 (`docs/lab/services.md`): from 2026-11-12, after reading what changed, in its own pull request, together with WP4.6.
+*Alternative:* re-pin at once to the new digest (it skips the 7-day rule and the reading).
+*Pull request:* the P2 pull request (`feat/p2-app`)

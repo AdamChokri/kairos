@@ -4,10 +4,10 @@
 # dso-jenkins: the deploy agent (user jdeploy, no Docker) with cosign, bao, testssl.sh and the
 # host keys of staging and production.
 # The agents must exist on the controller first (WP1.4) and their secrets be in OpenBao.
-- name: Java 21 and the agent's tools are installed
+- name: Java 21, git and the agent's tools are installed
   ansible.builtin.apt:
-    name: "{{ ['openjdk-21-jre-headless', 'curl', 'jq']
-              + ([] if jenkins_agent.docker else ['git', 'openssh-client', 'bsdextrautils', 'bind9-dnsutils']) }}"
+    name: "{{ ['openjdk-21-jre-headless', 'curl', 'jq', 'git']
+              + ([] if jenkins_agent.docker else ['openssh-client', 'bsdextrautils', 'bind9-dnsutils']) }}"
     state: present
     update_cache: true
     cache_valid_time: 3600

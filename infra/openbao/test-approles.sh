@@ -8,7 +8,7 @@
 #   - tries from dso-agent                  -> unreachable: UFW on dso-bao drops it.
 # Each test token revokes itself and every test secret ID is destroyed at the end, so nothing usable
 # is left behind. Credentials reach each VM through SSH's stdin, never a command line or a file.
-# Needs: bao, jq, curl; BAO_ADDR; an admin token (bao login -method=userpass username=adam);
+# Needs: bao, jq, curl; BAO_ADDR; an admin token (bao login -no-print -method=userpass username=adam);
 # SSH to the VMs as the admin user (WP1.1).
 set -euo pipefail
 
@@ -21,7 +21,7 @@ UNREACHABLE_FROM=dso-agent
 
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 for tool in bao jq curl ssh; do command -v "$tool" >/dev/null 2>&1 || fail "missing tool: $tool"; done
-bao token lookup >/dev/null 2>&1 || fail "no valid OpenBao token - run: bao login -method=userpass username=adam"
+bao token lookup >/dev/null 2>&1 || fail "no valid OpenBao token - run: bao login -no-print -method=userpass username=adam"
 
 declare -A VM_IP=()
 while IFS=, read -r name _ ip _; do

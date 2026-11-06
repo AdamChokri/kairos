@@ -1,0 +1,123 @@
+// ci/as-is/Jenkinsfile - the as-is pipeline of Kairos v0 (plan WP2.2, SV-10).
+//
+// This is what a typical team has before it adds security: it builds, pushes and deploys, and it
+// checks nothing. Every practice below is deliberate and is analysed in docs/as-is/. The to-be
+// pipeline (P4 to P6) replaces it, and WP8.1 runs THIS file again on purpose, to show the hardened
+// platform refusing it.
+//
+// Jenkins credentials it needs (WP2.2):
+//   dockerhub-rw-as-is  username with password: your Docker Hub user name + a Read & Write token
+//   deploy-ssh-as-is    username with password: "deploy" + the password in OpenBao kv/infra/as-is-deploy
+pipeline {
+    agent { label 'build' }
+
+    options {
+        skipDefaultCheckout(true)
+        disableConcurrentBuilds()
+        timestamps()
+        timeout(time: 40, unit: 'MINUTES')
+    }
+
+    parameters {
+        // Production is reached by hand: build with this box ticked.
+        booleanParam(name: 'DEPLOY_PRODUCTION', defaultValue: false,
+                     description: 'Deploy to production after staging')
+    }
+
+    environment {
+        // credentials() defines DOCKERHUB_USR and DOCKERHUB_PSW (and DEPLOY_USR, DEPLOY_PSW).
+        DOCKERHUB = credentials('dockerhub-rw-as-is')
+        DEPLOY = credentials('deploy-ssh-as-is')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Backend tests') {
+            steps {
+                // The tests run in the latest Python image (a mutable tag), as the user of the
+                // agent, so that the workspace stays deletable.
+                sh '''
+                    docker run --rm --user "$(id -u):$(id -g)" \
+                      -e HOME=/tmp -e UV_CACHE_DIR=/tmp/uv-cache -e UV_PROJECT_ENVIRONMENT=/tmp/venv \
+                      -e UV_PYTHON_DOWNLOADS=never -e PYTHONDONTWRITEBYTECODE=1 \
+                      -v "$PWD/backend:/app" -w /app python:latest \
+                      sh -c 'pip install --user --quiet uv && python -m uv sync --frozen && python -m uv run --no-sync pytest -q -p no:cacheprovider'
+                '''
+            }
+        }
+
+        stage('Frontend build') {
+            steps {
+                // No --ignore-scripts and no signature check: whatever the lockfile names runs.
+                sh '''
+                    docker run --rm --user "$(id -u):$(id -g)" \
+                      -e HOME=/tmp \
+                      -v "$PWD/frontend:/app" -w /app node:latest \
+                      sh -c 'npm ci && npm test && npm run build'
+                '''
+            }
+        }
+
+        stage('Docker build') {
+            steps {
+                // Mutable :latest tags, no scan of the images.
+                sh "docker build -t ${DOCKERHUB_USR}/kairos-api:latest backend"
+                sh "docker build -t ${DOCKERHUB_USR}/kairos-web:latest frontend"
+            }
+        }
+
+        stage('Docker push') {
+            steps {
+                // SV-10: the token is pasted into the command by Groovy string interpolation,
+                // which Jenkins flags, and it stays visible in the process list while docker runs.
+                // The login lives in this workspace, so the read-only login that Ansible keeps
+                // for the agent's pulls is left alone.
+                withEnv(["DOCKER_CONFIG=${env.WORKSPACE}/.docker"]) {
+                    sh "docker login -u ${DOCKERHUB_USR} -p ${DOCKERHUB_PSW}"
+                    sh "docker push ${DOCKERHUB_USR}/kairos-api:latest"
+                    sh "docker push ${DOCKERHUB_USR}/kairos-web:latest"
+                }
+            }
+        }
+
+        stage('Deploy staging') {
+            steps {
+                deployTo('staging.kairos.lab')
+            }
+        }
+
+        stage('Deploy production') {
+            when { expression { params.DEPLOY_PRODUCTION } }
+            steps {
+                deployTo('prod.kairos.lab')
+            }
+        }
+    }
+
+    post {
+        always {
+            // Housekeeping added after the first full disk: dangling layers of the rebuilt tags.
+            sh 'docker image prune -f'
+        }
+    }
+}
+
+// SV-10 and SV-11: sshpass logs in with a password given on the command line, and the host key is
+// not checked. No smoke test follows and no rollback exists: a broken deploy still ends green.
+def deployTo(String host) {
+    def ssh = "sshpass -p ${env.DEPLOY_PSW} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    def scp = "sshpass -p ${env.DEPLOY_PSW} scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    def target = "${env.DEPLOY_USR}@${host}"
+    // E-39: env.GIT_COMMIT is not set when the default checkout is skipped, and Groovy wrote the
+    // text "null" into the version; the commit is read from the workspace instead.
+    def sha = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+    def remote = "cd /opt/kairos && export DOCKERHUB_USER=${env.DOCKERHUB_USR} GIT_SHA=${sha} " +
+                 "&& docker compose pull && docker compose up -d --no-build --remove-orphans"
+    sh "${scp} deploy/compose.yaml deploy/.env ${target}:/opt/kairos/"
+    sh "${ssh} ${target} '${remote}'"
+}

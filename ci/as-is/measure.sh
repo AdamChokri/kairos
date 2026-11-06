@@ -1,0 +1,301 @@
+#!/usr/bin/env bash
+# ci/as-is/measure.sh [--stdout] - WP2.3: the numbers that can be measured on the as-is state, written
+# to docs/as-is/measurements.md (or printed with --stdout). Run it from WSL2 on the Legion, in the
+# repository, with the lab up and after the as-is job has run at least once.
+#
+# It only reads: build times from the job's records on dso-jenkins, the sizes of the images on
+# dso-agent, memory and disk of the three Docker hosts, the SSH and firewall state of the runtime
+# hosts, and a short allow-list of the controller's security settings. Credentials are listed by id
+# and scope only; no secret value is ever printed or stored.
+# MEASURE_SSH=<command> replaces ssh (used by the tests).
+set -Eeuo pipefail
+
+repo=$(cd "$(dirname "$(readlink -f "$0")")/../.." && pwd)
+ssh_cmd=${MEASURE_SSH:-ssh}
+out=$repo/docs/as-is/measurements.md
+[[ ${1:-} == --stdout ]] && out=/dev/stdout
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+failures=0
+
+jenkins_container=jenkins-jenkins-1
+job=kairos-as-is
+
+# remote HOST NAME: runs the script on stdin on HOST, keeps stdout in $work/NAME.txt.
+remote() {
+  local host=$1 name=$2 script
+  script=$(cat)
+  if printf '%s\n' "$script" | "$ssh_cmd" -o BatchMode=yes -o ConnectTimeout=15 "$host" 'bash -s' > "$work/$name.txt" 2> "$work/$name.err"; then
+    # Anything the remote commands wrote to stderr (sudo or docker refusing, a missing file) is a failure.
+    if grep -qv '^Warning: Permanently added' "$work/$name.err"; then
+      failures=$((failures + 1))
+      echo "NOT COLLECTED: $name on $host: $(grep -v '^Warning: Permanently added' "$work/$name.err" | head -c 300 | tr '\n' ' ')" >&2
+    fi
+  else
+    failures=$((failures + 1))
+    echo "NOT COLLECTED: $name on $host: $(head -c 300 "$work/$name.err" | tr '\n' ' ')" >&2
+    : > "$work/$name.txt"
+  fi
+}
+
+# --- dso-jenkins: build records, version, settings, credential ids -----------------------------
+remote dso-jenkins builds <<REMOTE
+set -u
+sudo -n docker exec $jenkins_container find /var/jenkins_home/jobs/$job -path '*/builds/[0-9]*/build.xml' | sort | while read -r f; do
+  echo "@@ \$f"
+  sudo -n docker exec $jenkins_container grep -E '^  <(timestamp|startTime|result|duration)>' "\$f" </dev/null || true
+done
+REMOTE
+remote dso-jenkins version <<REMOTE
+sudo -n docker exec $jenkins_container cat /var/jenkins_home/jenkins.install.InstallUtil.lastExecVersion
+REMOTE
+remote dso-jenkins config <<REMOTE
+sudo -n docker exec $jenkins_container cat /var/jenkins_home/config.xml
+REMOTE
+remote dso-jenkins credentials <<REMOTE
+sudo -n docker exec $jenkins_container cat /var/jenkins_home/credentials.xml
+REMOTE
+
+# --- the three Docker hosts: memory, disk, images ----------------------------------------------
+for host in dso-agent dso-staging dso-prod; do
+  remote "$host" "host-$host" <<'REMOTE'
+echo "mem|$(free -m | awk 'NR==2 {print $2 "|" $3 "|" $7}')"
+echo "disk|$(df -BM --output=size,used,avail / | tail -n 1 | tr -s ' ' '|' | sed 's/^|//; s/M//g')"
+sudo -n docker system df --format 'docker|{{.Type}}|{{.Size}}|{{.Reclaimable}}'
+sudo -n docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -E '(/kairos-(api|web):|^(python|node|postgres):)' | sort | while read -r i; do
+  echo "image|$i|$(sudo -n docker image inspect --format '{{.Size}}|{{len .RootFS.Layers}}|{{.Config.User}}' "$i" </dev/null)"
+done
+sudo -n docker ps --format 'running|{{.Names}}|{{.Image}}|{{.Ports}}'
+true
+REMOTE
+done
+for host in dso-staging dso-prod; do
+  remote "$host" "expose-$host" <<'REMOTE'
+echo "ssh|$(sudo -n sshd -T -C user=deploy,host=lab,addr=127.0.0.1 2>/dev/null | grep -E '^passwordauthentication')"
+echo "ufw|$(sudo -n ufw status 2>&1 | head -n 1)"
+echo "listen|$(ss -H -ltn | awk '{print $4}' | sed 's/.*://' | sort -un | tr '\n' ' ')"
+REMOTE
+done
+
+# --- formatting --------------------------------------------------------------------------------
+python3 -I - "$work" "$out" <<'PY' || failures=$((failures + 1))
+import datetime
+import re
+import statistics
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+work, out = Path(sys.argv[1]), sys.argv[2]
+lines: list[str] = []
+problems: list[str] = []
+
+
+def put(text: str = "") -> None:
+    lines.append(text)
+
+
+def read(name: str) -> str:
+    return (work / f"{name}.txt").read_text(encoding="utf-8", errors="replace")
+
+
+def parse(name: str):
+    """Parses a Jenkins XML file; Jenkins writes XML 1.1, which may hold control-character references."""
+    raw = read(name)
+    if not raw.strip():
+        return None
+    for candidate in (raw, re.sub(r"&#(?:x0*[0-9a-fA-F]{1,2}|[0-9]{1,2});", "", raw)):
+        try:
+            return ET.fromstring(candidate)
+        except ET.ParseError:
+            continue
+    problems.append(f"{name}.xml could not be parsed")
+    return None
+
+
+def mb(value: float) -> str:
+    return f"{value / 1_000_000:,.1f} MB"
+
+
+now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+put("# Measurements (as-is)")
+put()
+put(f"Generated by `ci/as-is/measure.sh` on {now}. Nothing here is typed by hand: run the script again "
+    "to refresh it. WP8.1 and WP4.2 compare against these numbers.")
+put()
+
+# --- pipeline duration ---
+put("## Pipeline duration")
+put()
+builds = []
+path = None
+fields: dict[str, str] = {}
+for raw in read("builds").splitlines() + ["@@ end"]:
+    if raw.startswith("@@ "):
+        if path is not None:
+            parts = path.split("/")
+            branch = parts[parts.index("branches") + 1] if "branches" in parts else "-"
+            number = parts[parts.index("builds") + 1]
+            builds.append((branch, int(number), fields))
+        path, fields = raw[3:], {}
+    elif raw.strip().startswith("<"):
+        tag = raw.strip().split(">")[0][1:]
+        fields[tag] = raw.strip().split(">")[1].split("<")[0]
+if not builds:
+    put("No build record was found for the job `kairos-as-is`: run the job once, then run this script again.")
+else:
+    put("| Branch | Build | Result | Started (UTC) | Duration |")
+    put("|---|---|---|---|---|")
+    ok_durations = []
+    for branch, number, f in sorted(builds):
+        branch = branch.replace("%2F", "/")
+        started = f.get("startTime") or f.get("timestamp")
+        when = (
+            datetime.datetime.fromtimestamp(int(started) / 1000, datetime.timezone.utc).strftime("%Y-%m-%d %H:%M")
+            if started and started.isdigit() else "n/a"
+        )
+        duration = f.get("duration")
+        if duration and duration.isdigit() and int(duration) > 0:
+            seconds = round(int(duration) / 1000)
+            shown = f"{seconds // 60} min {seconds % 60:02d} s"
+            if f.get("result") == "SUCCESS":
+                ok_durations.append(seconds)
+        else:
+            shown = "n/a"
+        put(f"| {branch} | #{number} | {f.get('result', 'running or unknown')} | {when} | {shown} |")
+    put()
+    if ok_durations:
+        median = round(statistics.median(ok_durations))
+        put(f"Successful builds: {len(ok_durations)}. Median duration {median // 60} min {median % 60:02d} s, "
+            f"shortest {min(ok_durations) // 60} min {min(ok_durations) % 60:02d} s, "
+            f"longest {max(ok_durations) // 60} min {max(ok_durations) % 60:02d} s. "
+            "The first build is the slowest: nothing is cached yet. Per-stage times are on the build's "
+            "Pipeline Graph page (EV-01).")
+    else:
+        put("No successful build is recorded yet.")
+put()
+
+# --- images ---
+put("## Image sizes")
+put()
+put("Sizes are what Docker reports for the uncompressed image on the host (the build agent first; the runtime hosts hold the pulled copies).")
+put()
+put("| Host | Image | Size | Layers | Runs as |")
+put("|---|---|---|---|---|")
+for host in ("dso-agent", "dso-staging", "dso-prod"):
+    for raw in read(f"host-{host}").splitlines():
+        if raw.startswith("image|"):
+            _, image, size, layers, user = (raw.split("|") + [""] * 5)[:5]
+            put(f"| {host} | `{image}` | {mb(int(size))} | {layers} | {user or 'root (no USER line)'} |")
+put()
+
+# --- hosts ---
+put("## Docker hosts: memory, disk and Docker's own use")
+put()
+put("| Host | RAM total / used / available (MB) | Root disk size / used / free (MB) | Docker: images | Docker: volumes |")
+put("|---|---|---|---|---|")
+for host in ("dso-agent", "dso-staging", "dso-prod"):
+    mem = disk = images = volumes = "n/a"
+    for raw in read(f"host-{host}").splitlines():
+        parts = raw.split("|")
+        if parts[0] == "mem" and len(parts) == 4:
+            mem = " / ".join(parts[1:])
+        elif parts[0] == "disk" and len(parts) == 4:
+            disk = " / ".join(parts[1:])
+        elif parts[0] == "docker" and len(parts) == 4:
+            if parts[1] == "Images":
+                images = f"{parts[2]} ({parts[3]} reclaimable)"
+            elif parts[1] == "Local Volumes":
+                volumes = f"{parts[2]} ({parts[3]} reclaimable)"
+    put(f"| {host} | {mem} | {disk} | {images} | {volumes} |")
+put()
+put("Containers running on the runtime hosts:")
+put()
+put("| Host | Container | Image | Published ports |")
+put("|---|---|---|---|")
+for host in ("dso-staging", "dso-prod"):
+    for raw in read(f"host-{host}").splitlines():
+        if raw.startswith("running|"):
+            _, name, image, ports = (raw.split("|") + [""] * 4)[:4]
+            put(f"| {host} | {name} | `{image}` | {ports} |")
+put()
+
+# --- exposure ---
+put("## Runtime hosts: SSH, firewall and open ports")
+put()
+put("| Host | Password logins for `deploy` (SV-11) | Firewall | TCP ports listening |")
+put("|---|---|---|---|")
+for host in ("dso-staging", "dso-prod"):
+    ssh_line = ufw = listen = "n/a"
+    for raw in read(f"expose-{host}").splitlines():
+        key, _, value = raw.partition("|")
+        if key == "ssh" and value:
+            ssh_line = f"`{value}`"
+        elif key == "ufw" and value:
+            ufw = value
+        elif key == "listen" and value.strip():
+            listen = value.strip().replace(" ", ", ")
+    put(f"| {host} | {ssh_line} | {ufw} | {listen} |")
+put()
+
+# --- jenkins ---
+put("## Jenkins as the setup wizard left it")
+put()
+version = read("version").strip() or "unknown"
+put(f"Controller version: {version}. Only these settings are read from `config.xml`; the screenshot `wp2.3-as-is-jenkins-security.png` shows the same page in the browser.")
+put()
+put("| Setting | Value |")
+put("|---|---|")
+root = parse("config")
+if root is not None:
+
+    def klass(tag: str) -> str:
+        node = root.find(tag)
+        return node.get("class", "n/a").rsplit(".", 1)[-1] if node is not None else "not set"
+
+    def text(path: str) -> str:
+        node = root.find(path)
+        return (node.text or "").strip() if node is not None else "not set"
+
+    put(f"| Security realm | {klass('securityRealm')} |")
+    put(f"| Sign-up allowed | {'no' if text('securityRealm/disableSignup') == 'true' else text('securityRealm/disableSignup')} |")
+    put(f"| Authorization | {klass('authorizationStrategy')} |")
+    put(f"| Anonymous read denied | {text('authorizationStrategy/denyAnonymousReadAccess')} |")
+    put(f"| Executors on the built-in node | {text('numExecutors')} |")
+    put(f"| Markup formatter | {klass('markupFormatter')} |")
+    put(f"| CSRF protection (crumb issuer) | {klass('crumbIssuer')} |")
+    put(f"| Inbound agent port | {text('slaveAgentPort')} |")
+else:
+    put("| config.xml | not collected |")
+put()
+put("Credentials in the store (id and scope only):")
+put()
+put("| Id | Type | Scope |")
+put("|---|---|---|")
+cred_root = parse("credentials")
+found = 0
+if cred_root is not None:
+    for node in cred_root.iter():
+        ident, scope = node.find("id"), node.find("scope")
+        if ident is not None and scope is not None:
+            found += 1
+            put(f"| `{(ident.text or '').strip()}` | {node.tag.rsplit('.', 1)[-1]} | {(scope.text or '').strip()} |")
+if not found:
+    put("| none found | | |")
+put()
+
+text_out = "\n".join(lines) + "\n"
+if out == "/dev/stdout":
+    sys.stdout.write(text_out)
+else:
+    Path(out).write_text(text_out, encoding="utf-8")
+    print(f"measure: wrote {out}")
+if problems:
+    sys.exit("measure: " + "; ".join(problems))
+PY
+
+if (( failures > 0 )); then
+  echo "measure: $failures collection(s) failed - the file says 'n/a' where nothing was read; fix the cause above and run again" >&2
+  exit 1
+fi
+echo "measure: OK"

@@ -9,7 +9,7 @@
 # Never creates or reads a secret value.
 #
 # Needs: bao, jq; BAO_ADDR set; an admin token (the root token during setup, then
-# `bao login -method=userpass username=adam`).
+# `bao login -no-print -method=userpass username=adam`).
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,7 +23,7 @@ for tool in bao jq; do
   command -v "$tool" >/dev/null 2>&1 || fail "missing tool: $tool"
 done
 [[ -n ${BAO_ADDR:-} ]] || fail "BAO_ADDR is not set (expected https://openbao.kairos.lab:8200)"
-bao token lookup >/dev/null 2>&1 || fail "no valid OpenBao token - log in first (bao login -method=userpass username=adam)"
+bao token lookup >/dev/null 2>&1 || fail "no valid OpenBao token - log in first (bao login -no-print -method=userpass username=adam)"
 
 # --- Secrets engines and auth methods -------------------------------------------------
 

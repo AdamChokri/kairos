@@ -113,7 +113,10 @@ def deployTo(String host) {
     def ssh = "sshpass -p ${env.DEPLOY_PSW} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     def scp = "sshpass -p ${env.DEPLOY_PSW} scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     def target = "${env.DEPLOY_USR}@${host}"
-    def remote = "cd /opt/kairos && export DOCKERHUB_USER=${env.DOCKERHUB_USR} GIT_SHA=${env.GIT_COMMIT} " +
+    // E-39: env.GIT_COMMIT is not set when the default checkout is skipped, and Groovy wrote the
+    // text "null" into the version; the commit is read from the workspace instead.
+    def sha = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+    def remote = "cd /opt/kairos && export DOCKERHUB_USER=${env.DOCKERHUB_USR} GIT_SHA=${sha} " +
                  "&& docker compose pull && docker compose up -d --no-build --remove-orphans"
     sh "${scp} deploy/compose.yaml deploy/.env ${target}:/opt/kairos/"
     sh "${ssh} ${target} '${remote}'"

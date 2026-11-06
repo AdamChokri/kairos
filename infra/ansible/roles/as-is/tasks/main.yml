@@ -1,0 +1,104 @@
+---
+# Role as-is (plan WP2.2, SV-10 and SV-11): the practices of a typical team, as code, so that the
+# hardening work packages can remove them with one switch (as_is_state, see defaults/main.yml).
+#   build agent (dso-agent): sshpass, which the as-is pipeline uses to log in with a password;
+#   runtime hosts (staging, production): the "deploy" account with a password and SSH password
+#   logins, and the folder the as-is pipeline copies the Compose file into.
+# The deploy password is generated into OpenBao by infra/openbao/gen-secret.sh and read here.
+- name: The state of the as-is practices is a known value
+  ansible.builtin.assert:
+    that: as_is_state in ['present', 'absent']
+    fail_msg: "as_is_state must be present or absent, not {{ as_is_state }}"
+    quiet: true
+
+- name: The build agent has sshpass only while the as-is practices exist
+  when: inventory_hostname in groups['jenkins_build']
+  ansible.builtin.apt:
+    name: sshpass
+    state: "{{ as_is_state }}"
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: The runtime hosts keep the as-is deploy account and SSH password logins
+  when: inventory_hostname in groups['runtime']
+  block:
+    - name: The as-is practices are present
+      when: as_is_state == 'present'
+      block:
+        - name: The deploy account exists, in the docker group, with the password from OpenBao
+          ansible.builtin.user:
+            name: "{{ as_is_deploy_user }}"
+            comment: Kairos as-is deploy account (password SSH, SV-11)
+            shell: /bin/bash
+            create_home: true
+            groups: docker
+            append: true
+            # A fixed salt per host keeps the hash, and so the task, idempotent.
+            password: "{{ secret_as_is_deploy.password | password_hash('sha512', (inventory_hostname | hash('sha256'))[:16]) }}"
+            update_password: always
+          no_log: true
+
+        - name: The application folder belongs to the deploy account
+          ansible.builtin.file:
+            path: "{{ as_is_app_dir }}"
+            state: directory
+            owner: "{{ as_is_deploy_user }}"
+            group: "{{ as_is_deploy_user }}"
+            mode: "0755"
+
+        - name: SSH password logins are allowed
+          ansible.builtin.template:
+            src: sshd-as-is.conf.j2
+            dest: /etc/ssh/sshd_config.d/10-kairos-as-is.conf
+            owner: root
+            group: root
+            mode: "0644"
+          notify: Reload SSH
+
+    - name: The as-is practices are absent
+      when: as_is_state == 'absent'
+      block:
+        - name: Is there an application folder to stop?
+          ansible.builtin.stat:
+            path: "{{ as_is_app_dir }}/compose.yaml"
+          register: as_is_compose
+
+        - name: The as-is stack is stopped (its database volume stays)
+          when: as_is_compose.stat.exists
+          community.docker.docker_compose_v2:
+            project_src: "{{ as_is_app_dir }}"
+            state: absent
+
+        - name: The application folder is gone
+          ansible.builtin.file:
+            path: "{{ as_is_app_dir }}"
+            state: absent
+
+        - name: The deploy account is gone, with its home
+          ansible.builtin.user:
+            name: "{{ as_is_deploy_user }}"
+            state: absent
+            remove: true
+
+        - name: The SSH password drop-in is gone
+          ansible.builtin.file:
+            path: /etc/ssh/sshd_config.d/10-kairos-as-is.conf
+            state: absent
+          notify: Reload SSH
+
+    - name: The configuration of sshd is valid
+      ansible.builtin.command: /usr/sbin/sshd -t
+      changed_when: false
+
+    - name: What sshd will apply to the deploy account
+      ansible.builtin.command: "/usr/sbin/sshd -T -C user={{ as_is_deploy_user }},host=lab,addr=127.0.0.1"
+      register: as_is_sshd
+      changed_when: false
+
+    - name: Password logins are allowed exactly while the as-is practices exist
+      ansible.builtin.assert:
+        that: >-
+          ('passwordauthentication ' ~ ('yes' if as_is_state == 'present' else 'no'))
+          in as_is_sshd.stdout_lines
+        fail_msg: "sshd's effective PasswordAuthentication does not match as_is_state={{ as_is_state }}"
+        quiet: true

@@ -2,6 +2,7 @@
 # infra/ansible/site.yml - the whole lab (plan P1). Each play carries the tag of its work package,
 # so a work package runs alone: ansible-playbook site.yml --tags <tag>
 #   base, docker (WP1.2) · openbao (WP1.3) · jenkins, jenkins-agents (WP1.4) · sonarqube (WP1.5) · wazuh (WP1.6)
+#   as-is (WP2.2; -e as_is_state=absent removes it again)
 # Plays that read secrets need a valid OpenBao login in WSL2: bao login -no-print -method=userpass username=adam
 - name: Base system on every VM (WP1.2)
   hosts: lab
@@ -50,3 +51,9 @@
   become: true
   tags: [wazuh]
   roles: [wazuh-agent]
+
+- name: As-is practices on the build agent and the runtime hosts (WP2.2, SV-10 and SV-11)
+  hosts: jenkins_build:runtime
+  become: true
+  tags: [as-is]
+  roles: [as-is]

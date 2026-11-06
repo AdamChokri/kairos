@@ -44,8 +44,8 @@ Run each command, read what it shows, and tick the line only when it showed the 
 - [x] SV-07 the scanner reports both packages (Trivy takes one target per run): `trivy fs --scanners vuln --severity HIGH,CRITICAL backend/uv.lock` lists `pyjwt 2.3.0` (High); `trivy fs --scanners vuln --severity HIGH,CRITICAL frontend/package-lock.json` lists `lodash 4.17.11` (Critical)
 - [x] SV-08 errors, CORS, headers and plain HTTP: `bash security/check-seeded.sh` → the five `PASS SV-08` lines
 - [x] SV-09 root, a secret in the image, the dev server: `docker compose -f deploy/compose.yaml exec api id` prints `uid=0(root)`; `docker compose -f deploy/compose.yaml exec api printenv ADMIN_API_KEY` prints the fake value; `trivy config --severity HIGH,CRITICAL backend/Dockerfile` reports DS-0002 (High) and DS-0031 (Critical), and the same command on `frontend/Dockerfile` reports DS-0002 (High)
-- [ ] SV-10 the as-is job exists and its console shows Jenkins' warning about Groovy string interpolation (WP2.2)
-- [ ] SV-11 the hosts accept password logins for the deploy account (WP2.2): `ssh dso-staging "sudo sshd -T -C user=deploy,host=lab,addr=127.0.0.1 | grep ^passwordauthentication"` prints `passwordauthentication yes`; the same on `dso-prod`
+- [x] SV-10 the as-is job exists and its console shows Jenkins' warning about Groovy string interpolation (WP2.2)
+- [x] SV-11 the hosts accept password logins for the deploy account (WP2.2): `ssh dso-staging "sudo sshd -T -C user=deploy,host=lab,addr=127.0.0.1 | grep ^passwordauthentication"` prints `passwordauthentication yes`; the same on `dso-prod`
 
 ## Not seeded
 

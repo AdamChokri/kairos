@@ -1,0 +1,96 @@
+# .pre-commit-config.yaml - the developer workstation's controls (plan WP3.2, decision D-12).
+#
+# Commit stage (seconds): pre-commit-hooks, Gitleaks, Ruff, Bandit, ESLint, Hadolint.
+# Push stage (under two minutes): Semgrep and Trivy.
+# Install once:  pre-commit install --hook-type pre-commit --hook-type pre-push
+#
+# Every `rev` is a full commit SHA with the tag it stands for in a `# frozen:` comment: a tag can be
+# moved, a SHA cannot. Each is the newest release that was at least 7 days old when it was pinned.
+# `pre-commit autoupdate --freeze` is NOT used, because it takes the newest release whatever its age;
+# ci/tools/verify-hook-revs.sh checks every SHA against its tag. Change a pin through a pull request.
+#
+# Hooks look at the files of the commit or push only. Findings of the seeded weaknesses (plan
+# section 5) pass only through two exact lists, never through an ignore file or a wider rule:
+# security/seeded-secrets.tsv (Gitleaks) and security/seeded-trivy.tsv (Trivy). Both shrink to
+# nothing as WP4.5 fixes SV-01, SV-07 and SV-09.
+minimum_pre_commit_version: "4.7.0"
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+    hooks:
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-json
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: 25bcf95026b96e2dd3c0aec3090c3d6ef6ca2e6c  # frozen: v0.17.3
+    hooks:
+      - id: ruff-check
+        exclude: ^security/semgrep/tests/
+      - id: ruff-format
+        exclude: ^security/semgrep/tests/
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 92ae8b82fb422a639f0ed8d99e96cea769594e08  # frozen: 1.9.4
+    hooks:
+      - id: bandit
+        name: bandit (blocks HIGH severity with MEDIUM or HIGH confidence)
+        # -lll: severity HIGH only; -ii: confidence MEDIUM and above (plan section 4.2).
+        args: ["-c", "backend/pyproject.toml", "-lll", "-ii"]
+        exclude: ^(backend/tests/|security/semgrep/tests/)
+
+  - repo: https://github.com/semgrep/pre-commit
+    rev: dfdeebdd309a043859ba33a555839911e7b11801  # frozen: v1.182.1
+    hooks:
+      - id: semgrep
+        name: semgrep (blocks ERROR findings; registry packs and security/semgrep/)
+        stages: [pre-push]
+        args:
+          - "--config"
+          - "p/python"
+          - "--config"
+          - "p/typescript"
+          - "--config"
+          - "p/react"
+          - "--config"
+          - "security/semgrep/"
+          - "--severity"
+          - "ERROR"
+          - "--error"
+          - "--metrics"
+          - "off"
+          - "--quiet"
+        exclude: ^security/semgrep/tests/
+
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks (staged changes; the seeded secrets of SV-01 are listed in security/seeded-secrets.tsv)
+        entry: bash ci/tools/commit-scan.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: eslint
+        name: eslint (frontend, security rules, in the pinned Node image)
+        entry: bash ci/tools/hook-eslint.sh
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js)$
+
+      - id: hadolint
+        name: hadolint (fails at level error)
+        entry: bash ci/tools/hook-hadolint.sh
+        language: system
+        files: (^|/)Dockerfile[^/]*$
+
+      - id: trivy
+        name: trivy (changed lockfiles and Dockerfiles; blocks Critical, and High with a fix)
+        entry: bash ci/tools/hook-trivy.sh
+        language: system
+        stages: [pre-push]
+        files: (^|/)(uv\.lock|package-lock\.json|Dockerfile[^/]*)$

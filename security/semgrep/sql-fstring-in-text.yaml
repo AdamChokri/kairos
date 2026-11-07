@@ -1,0 +1,40 @@
+rules:
+  - id: kairos.sql-fstring-in-text
+    languages: [python]
+    severity: ERROR
+    message: >-
+      A SQL statement is built from a string that carries a variable (an f-string, a concatenation,
+      % or .format). What: the variable becomes part of the SQL itself, so a value such as
+      ' OR '1'='1 changes what the query does. Why it matters: the caller can read or change rows
+      that are not theirs, and on some databases run commands. How to fix: keep the SQL constant and
+      pass values as bound parameters, text("... LIKE :pattern") with params {"pattern": ...}, or
+      use the SQLAlchemy expression language. Guide: docs/secure-coding.md#sql-injection
+    metadata:
+      category: security
+      owasp:
+        - "A05:2025 Injection"
+      cwe:
+        - "CWE-89: Improper Neutralization of Special Elements used in an SQL Command"
+      asvs:
+        - "v5.0.0-1.2.4"
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+      seeded: SV-02
+      guide: docs/secure-coding.md#sql-injection
+      references:
+        - https://github.com/AdamChokri/kairos/blob/main/docs/secure-coding.md#sql-injection
+    pattern-either:
+      - pattern: text(f"...")
+      - pattern: text("..." f"...")
+      - pattern: text(f"..." "...")
+      - pattern: text("..." f"..." "...")
+      - pattern: text($A + ...)
+      - pattern: text("..." % ...)
+      - pattern: text("...".format(...))
+      - pattern: $DB.execute(f"...", ...)
+      - pattern: $DB.execute("..." f"...", ...)
+      - pattern: $DB.execute(f"..." "...", ...)
+      - pattern: $DB.execute($A + ..., ...)
+      - pattern: $DB.execute("..." % ..., ...)
+      - pattern: $DB.execute("...".format(...), ...)

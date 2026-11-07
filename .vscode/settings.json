@@ -1,0 +1,15 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
+  "ruff.lint.extendSelect": ["S"],
+  "python.analysis.extraPaths": ["backend"],
+  "eslint.workingDirectories": [
+    {
+      "directory": "frontend",
+      "changeProcessCWD": true
+    }
+  ],
+  "sonarlint.connectedMode.project": {
+    "connectionId": "kairos-lab",
+    "projectKey": "kairos"
+  }
+}

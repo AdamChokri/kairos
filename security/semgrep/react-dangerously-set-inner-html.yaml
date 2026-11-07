@@ -1,0 +1,33 @@
+rules:
+  - id: kairos.react-dangerously-set-inner-html
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      dangerouslySetInnerHTML inserts a value as HTML. What: any markup in the value, including
+      <img onerror=...> and <script>, runs in the browser of everyone who opens the page. Why it
+      matters: stored cross-site scripting steals the session token that the single-page app keeps
+      and acts as the user. How to fix: render the value as a text child, <li>{comment.body}</li>,
+      which React escapes; if HTML is truly needed, sanitize it with a maintained library first and
+      add a Content-Security-Policy. Guide: docs/secure-coding.md#cross-site-scripting
+    metadata:
+      category: security
+      owasp:
+        - "A05:2025 Injection"
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation (Cross-site Scripting)"
+      asvs:
+        - "v5.0.0-1.2.1"
+        - "v5.0.0-3.2.2"
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+      seeded: SV-03
+      guide: docs/secure-coding.md#cross-site-scripting
+      references:
+        - https://github.com/AdamChokri/kairos/blob/main/docs/secure-coding.md#cross-site-scripting
+    patterns:
+      - pattern-either:
+          - pattern: '<$EL dangerouslySetInnerHTML={{__html: $VALUE}} />'
+          - pattern: '<$EL dangerouslySetInnerHTML={{__html: $VALUE}}>...</$EL>'
+          - pattern: '<$EL ... dangerouslySetInnerHTML={{__html: $VALUE}} ... />'
+      - pattern-not: '<$EL dangerouslySetInnerHTML={{__html: "..."}} />'

@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+    "dbaeumer.vscode-eslint",
+    "SonarSource.sonarlint-vscode",
+    "redhat.vscode-yaml"
+  ]
+}

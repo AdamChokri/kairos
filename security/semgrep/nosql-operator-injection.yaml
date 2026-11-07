@@ -1,0 +1,50 @@
+rules:
+  - id: kairos.nosql-operator-injection
+    languages: [python]
+    severity: ERROR
+    mode: taint
+    message: >-
+      A value from the request reaches a MongoDB query as it is. What: if the client sends a JSON
+      object instead of a string ({"password": {"$ne": null}}), its keys are query operators, so the
+      filter matches every document; a $where value is even run as JavaScript. Why it matters: it
+      bypasses logins and reads or deletes other users' documents. How to fix: validate the input
+      against a schema that demands plain strings (a Pydantic model), or convert with str() before
+      it goes into the filter, and never build a $where from user input.
+      Guide: docs/secure-coding.md#nosql-operator-injection
+    metadata:
+      category: security
+      owasp:
+        - "A05:2025 Injection"
+      cwe:
+        - "CWE-943: Improper Neutralization of Special Elements in Data Query Logic"
+      asvs:
+        - "v5.0.0-1.2.4"
+        - "v5.0.0-2.2.1"
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: HIGH
+      seeded: none (Kairos has no NoSQL store; the rule ships with an annotated fixture)
+      guide: docs/secure-coding.md#nosql-operator-injection
+      references:
+        - https://github.com/AdamChokri/kairos/blob/main/docs/secure-coding.md#nosql-operator-injection
+    pattern-sources:
+      - pattern: request.json
+      - pattern: request.get_json(...)
+      - pattern: await request.json()
+      - pattern: request.args
+      - pattern: request.form
+      - pattern: request.query_params
+    pattern-sanitizers:
+      - pattern: str(...)
+      - pattern: int(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $COLL.find($Q, ...)
+              - pattern: $COLL.find_one($Q, ...)
+              - pattern: $COLL.update_one($Q, ...)
+              - pattern: $COLL.update_many($Q, ...)
+              - pattern: $COLL.delete_one($Q, ...)
+              - pattern: $COLL.delete_many($Q, ...)
+              - pattern: $COLL.count_documents($Q, ...)
+          - focus-metavariable: $Q

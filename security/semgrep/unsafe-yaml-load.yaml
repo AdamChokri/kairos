@@ -1,0 +1,31 @@
+rules:
+  - id: kairos.unsafe-yaml-load
+    languages: [python]
+    severity: ERROR
+    message: >-
+      yaml.load is called with a loader that can build any Python object. What: a document such as
+      !!python/object/apply:os.system ['id'] makes the server run that function while it parses.
+      Why it matters: whoever can send the document (here, any logged-in user of the import
+      endpoint) runs code on the server. How to fix: use yaml.safe_load, then validate the result
+      against a schema (a Pydantic model) before using it. Guide: docs/secure-coding.md#unsafe-deserialization
+    metadata:
+      category: security
+      owasp:
+        - "A08:2025 Software or Data Integrity Failures"
+      cwe:
+        - "CWE-502: Deserialization of Untrusted Data"
+      asvs:
+        - "v5.0.0-1.5.2"
+        - "v5.0.0-2.2.1"
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+      seeded: SV-04
+      guide: docs/secure-coding.md#unsafe-deserialization
+      references:
+        - https://github.com/AdamChokri/kairos/blob/main/docs/secure-coding.md#unsafe-deserialization
+    patterns:
+      - pattern: yaml.load($DATA, Loader=$LOADER)
+      - metavariable-regex:
+          metavariable: $LOADER
+          regex: ^(yaml\.)?(Loader|UnsafeLoader|FullLoader|CLoader|CUnsafeLoader)$

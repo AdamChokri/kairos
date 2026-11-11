@@ -3,7 +3,8 @@
 #   1. ci/tools/tools.lock is well formed: unique names, an explicit tag (never latest), a real digest;
 #   2. nothing in it, and no install script, names a release of ci/tools/denylist.txt;
 #   3. the tool versions agree everywhere they are pinned: the lock, the install scripts and hooks of P3,
-#      .pre-commit-config.yaml and backend/pyproject.toml. One version of each tool, wherever it runs.
+#      .pre-commit-config.yaml and backend/pyproject.toml. One version of each tool, wherever it runs;
+#   4. the images the application is built and run on (both Dockerfiles, the Compose file) are the lock's pins.
 # `--allow-placeholder` accepts digests of zeros (right after a tag changed, before pin-tools.sh ran).
 # Run by preflight and by `make hooks-selftest`. Needs bash, awk, grep and sed. Exit code 1 on any problem.
 set -Eeuo pipefail
@@ -17,12 +18,13 @@ allow_placeholder=0
 problems=0
 bad() { printf 'FAIL  %s\n' "$1"; problems=$((problems + 1)); }
 
-declare -A image_of version_of
+declare -A image_of version_of digest_of
 while read -r name image digest pushed verified extra; do
   [[ -z $name || $name == \#* ]] && continue
   if [[ -z ${verified:-} || -n ${extra:-} ]]; then bad "tools.lock: $name: expected 5 columns (name image digest pushed verified-by)"; continue; fi
   [[ -z ${image_of[$name]:-} ]] || bad "tools.lock: $name appears twice"
   image_of[$name]=$image
+  digest_of[$name]=$digest
   [[ $image == *:* && $image != *:latest && $image != *@* ]] || bad "tools.lock: $name: $image needs an explicit tag, not latest, and no digest in this column"
   version_of[$name]="${image##*:}"
   if [[ ! $digest =~ ^sha256:[0-9a-f]{64}$ ]]; then
@@ -65,6 +67,36 @@ if [[ $node =~ ^node:[0-9.]+-slim@sha256:[0-9a-f]{64}$ ]]; then
 else
   bad "ci/tools/node-image.txt does not hold a pinned node image"
 fi
+
+# 4. The images the application is built and run on are the ones the lock pins (SV-09, WP4.5): a Dockerfile or the
+#    Compose file that names another tag or digest than ci/tools/tools.lock would be built on an image that no
+#    scanner and no rule has looked at. `image_refs FILE REPOSITORY` lists the FROM lines (stage names excluded)
+#    or `image:` lines of FILE that name REPOSITORY; each must equal the pin, and there must be at least one.
+image_refs() {
+  awk -v repo="$2" '
+    toupper($1) == "FROM" { for (i = 3; i < NF; i++) if (toupper($i) == "AS") stage[$(i + 1)] = 1; if (!($2 in stage) && index($2, repo ":") == 1) print $2; next }
+    $1 == "image:" { ref = $2; gsub(/["\047]/, "", ref); if (index(ref, repo ":") == 1) print ref }' "$1"
+}
+agree_image() { # FILE TOOL PIN
+  local file=$1 tool=$2 pin=$3 repo refs ref found=0
+  repo="${pin%%:*}"
+  if [[ ! -f $ROOT/$file ]]; then bad "$file is missing"; return; fi
+  refs="$(image_refs "$ROOT/$file" "$repo")"
+  while read -r ref; do
+    [[ -n $ref ]] || continue
+    found=1
+    if [[ $ref == "$pin" ]]; then printf 'ok    %s builds on %s\n' "$file" "${pin%%@*}"; else bad "$file: $ref is not the pin of $tool in ci/tools/tools.lock ($pin)"; fi
+  done <<<"$refs"
+  (( found )) || bad "$file does not use the $tool image of ci/tools/tools.lock ($repo)"
+}
+pin_of() { printf '%s@%s' "${image_of[$1]:-}" "${digest_of[$1]:-}"; }
+agree_image backend/Dockerfile python "$(pin_of python)"
+agree_image frontend/Dockerfile nginx "$(pin_of nginx)"
+agree_image frontend/Dockerfile node "$node"
+agree_image deploy/compose.yaml postgres "$(pin_of postgres)"
+# uv installs the production dependencies inside the image: one version, the one whose hashes
+# ci/tools/uv-requirements.txt pins for the agents.
+same "uv: backend/Dockerfile and ci/tools/uv-requirements.txt" "$(first_match "$ROOT/backend/Dockerfile" '^RUN pip install .*uv==([0-9][0-9.]*).*')" "$(first_match "$ROOT/ci/tools/uv-requirements.txt" '^uv==([0-9][0-9.]*).*')"
 
 # The scan-tool installers must not install a denylisted release either.
 while read -r kind dname dversion _; do

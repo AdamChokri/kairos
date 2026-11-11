@@ -47,6 +47,19 @@ Run each command, read what it shows, and tick the line only when it showed the 
 - [x] SV-10 the as-is job exists and its console shows Jenkins' warning about Groovy string interpolation (WP2.2)
 - [x] SV-11 the hosts accept password logins for the deploy account (WP2.2): `ssh dso-staging "sudo sshd -T -C user=deploy,host=lab,addr=127.0.0.1 | grep ^passwordauthentication"` prints `passwordauthentication yes`; the same on `dso-prod`
 
+## Fixed
+
+One row per weakness, added by the pull request that fixes it (WP4.5 onwards): the commit message, the regression test that was committed red first, and the proof. The checklist above stays as it was: it shows each weakness **present**, on `v0.1-as-is`.
+
+| ID | Fixed by | Regression test | Proof |
+|---|---|---|---|
+| SV-01 | `fix(sec): SV-01 hard-coded secrets with its regression test` | `backend/tests/test_config.py` | `bash security/check-seeded.sh` → `MISSING SV-01`; `git ls-files deploy/.env` prints nothing; `make dev-up` makes the secrets the stack reads |
+| SV-02 | `fix(sec): SV-02 SQL injection in the task search, with its regression test` | `backend/tests/test_tasks.py` (four tests) | `bash security/check-seeded.sh` → `MISSING SV-02`; the Semgrep rule `sql-fstring-in-text` no longer fires on `tasks.py` |
+| SV-04 | `fix(sec): SV-04 unsafe YAML loading in the task import, with its regression test` | `backend/tests/test_import.py` (ten tests) | `bash security/check-seeded.sh` → `MISSING SV-04`; Bandit B506 and the Semgrep rule `unsafe-yaml-load` no longer fire on `importer.py` |
+| SV-05 | `fix(sec): SV-05 unsalted MD5 password hashes, with its regression test` | `backend/tests/test_security.py` (six tests) | a new account's `password_hash` starts with `$argon2id$` (`select username, password_hash from users`); Bandit reports nothing on the backend |
+| SV-03 | `fix(sec): SV-03 stored XSS in the comment list, with its regression test` | `frontend/src/CommentList.test.tsx` (three tests) | `npm run lint` has no `react/no-danger` error; a comment `<img src=x onerror=...>` is shown as text; the CSP half of the fix arrives with the nginx headers (SV-08, WP5.4) |
+| SV-09 | `fix(sec): SV-09 root containers on mutable images, with its regression test` | `ci/tools/check-container-hardening.py` and `ci/tools/check-tools-lock.sh` (fifteen refusals and a pass in section 7, the pin checks in section 4 of `ci/tools/test-ci-scripts.sh`) | `trivy config backend/Dockerfile` and `frontend/Dockerfile` report 0 misconfigurations (before: DS-0001, DS-0002, DS-0031); `docker compose -f deploy/compose.yaml -f deploy/compose.dev.yaml exec api id` prints `uid=10001`; `printenv ADMIN_API_KEY` prints nothing; `docker compose ps` lists only `127.0.0.1:8080` and `127.0.0.1:8000` |
+
 ## Not seeded
 
 Two ordinary design choices are not seeded weaknesses and no work package fixes them on purpose: the single-page app keeps its token in `localStorage` (ASVS V3, looked at again by the WP5.4 pentest), and the unit tests run on SQLite while the Compose smoke test (`ci/as-is/smoke.sh`) runs the same API on PostgreSQL 17.

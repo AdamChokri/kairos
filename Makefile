@@ -1,6 +1,6 @@
 # Kairos - local entry points. The sec-* targets (WP4.2) run the same scripts and the same pinned images as the pipeline.
 
-.PHONY: lab-up lab-down lab-status as-is smoke check-seeded commit-scan-test measure \
+.PHONY: lab-up lab-down lab-status as-is smoke check-seeded commit-scan-test measure dev-secrets dev-up dev-down \
         hooks-install hooks-commit hooks-push hooks-selftest rules-test \
         tools-check tools-pin sec-preflight sec-secrets sec-test sec-sast sec-sca sec-iac sec-image sec-all
 
@@ -18,6 +18,20 @@ lab-status:
 # must report changed=0; add -e as_is_state=absent to the command to remove them (WP5.3, WP6.1).
 as-is:
 	cd infra/ansible && ansible-playbook site.yml --tags as-is
+
+# The Compose stack on the Legion (SV-01, SV-09, WP4.5): throwaway secret files first (never in Git), then the
+# stack built from the working tree, the web tier on http://127.0.0.1:8080 and the API on http://127.0.0.1:8000.
+# `make dev-down` also removes the database volume, because its password belongs to the files above.
+COMPOSE_DEV = docker compose -f deploy/compose.yaml -f deploy/compose.dev.yaml
+
+dev-secrets:
+	@bash ci/tools/dev-secrets.sh
+
+dev-up: dev-secrets
+	GIT_SHA=$$(git rev-parse --short HEAD) $(COMPOSE_DEV) up --build -d --wait
+
+dev-down:
+	$(COMPOSE_DEV) down -v
 
 # The API must be running: make smoke, or make smoke BASE=http://staging.kairos.lab:8000
 BASE ?= http://localhost:8000

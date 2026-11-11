@@ -16,3 +16,4 @@ syft           anchore/syft:v1.55.0                         sha256:4cc92b64ca74f
 zap            zaproxy/zap-stable:2.17.0                    sha256:030d3df57735dacbb83464854758e674dd9ad01d79d12a129a8e58b1fd384238  2026-10-26  -
 sonar-scanner  sonarsource/sonar-scanner-cli:12.3.0.4285_8.1.0  sha256:47956b669bf486bdad919e1cbd0533223515aa0b6d1d31763e5a3754942df6d7  -  -
 nginx          nginxinc/nginx-unprivileged:1.30.6-alpine3.24  sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03  2026-10-19  -
+postgres       postgres:17.10-trixie                        sha256:7958605b474b3d264a969cb3a123d6aa00ad1e1fe9da8a69984dabb704d93317  2026-08-05  -

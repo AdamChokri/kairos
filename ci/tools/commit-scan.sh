@@ -3,7 +3,8 @@
 #
 # Scans what is staged with the pinned Gitleaks and the repository's .gitleaks.toml, then compares
 # the findings with security/seeded-secrets.tsv, the list of fake secrets that the seeded
-# weakness SV-01 puts in the repository on purpose:
+# weakness SV-01 puts in the repository on purpose (until WP4.5 deleted the list, with the fix: no file
+# means no exception, and every finding blocks):
 #   - a finding that is not in the list        -> blocked;
 #   - a listed file that is staged without its finding (or with more) -> blocked: the seeded
 #     weakness was changed without updating the list.
@@ -25,7 +26,6 @@ command -v gitleaks >/dev/null || die "gitleaks is not installed (version $GITLE
 found="$(gitleaks version | tr -d '[:space:]')"
 found="${found#v}"
 [[ "$found" == "$GITLEAKS_PINNED" ]] || die "gitleaks $found is installed, $GITLEAKS_PINNED is pinned (change the pin through a pull request)"
-[[ -f "$TABLE" ]] || die "$TABLE is missing"
 [[ -d /dev/shm ]] || die "/dev/shm is not available for the report"
 
 REPORT="$(mktemp /dev/shm/commit-scan.XXXXXX)"
@@ -51,15 +51,17 @@ report_path, table_path, guide = sys.argv[1:4]
 staged = {line for line in os.environ["STAGED"].splitlines() if line}
 
 expected = {}
-with open(table_path, encoding="utf-8") as table:
-    for number, raw in enumerate(table, 1):
-        line = raw.rstrip("\n")
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        fields = line.split("\t")
-        if len(fields) != 3 or not fields[2].isdigit():
-            sys.exit(f"commit-scan: {table_path} line {number}: expected file<TAB>rule<TAB>count")
-        expected[(fields[0], fields[1])] = int(fields[2])
+# The list is optional: once no weakness is seeded any more (WP4.5), the file is deleted and nothing is accepted.
+if os.path.exists(table_path):
+    with open(table_path, encoding="utf-8") as table:
+        for number, raw in enumerate(table, 1):
+            line = raw.rstrip("\n")
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            fields = line.split("\t")
+            if len(fields) != 3 or not fields[2].isdigit():
+                sys.exit(f"commit-scan: {table_path} line {number}: expected file<TAB>rule<TAB>count")
+            expected[(fields[0], fields[1])] = int(fields[2])
 
 with open(report_path, encoding="utf-8") as report:
     content = report.read().strip()

@@ -1,10 +1,10 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
-// As-is (SV-09): the Vite dev server is what the container runs, on every interface, and it
-// accepts any Host header. WP4.5 serves the static build from nginx instead.
+// The development server listens on the loopback only (SV-09, fixed in WP4.5). The container serves the
+// static build from nginx (frontend/nginx.conf), never this server.
 export default defineConfig({
   plugins: [react()],
-  server: { host: "0.0.0.0", port: 5173, allowedHosts: true },
+  server: { host: "127.0.0.1", port: 5173 },
   test: { environment: "jsdom" },
 });

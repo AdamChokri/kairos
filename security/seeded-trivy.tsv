@@ -1,8 +1,6 @@
 # Findings of the seeded weaknesses that the push-stage Trivy hook (ci/tools/hook-trivy.sh) accepts, and nothing else.
 # file<TAB>package or check id<TAB>installed version ("-" for a Dockerfile check)
-# SV-07 (fixed in WP4.5 by the Dependabot pull requests) and SV-09 (fixed in WP4.5). Remove each row in the commit that fixes it.
+# SV-07 only (fixed in WP4.5 by the Dependabot pull requests): SV-09's Dockerfile rows went with its fix.
+# Remove each row in the commit that fixes it; the file is deleted with the last one.
 backend/uv.lock	pyjwt	2.3.0
 frontend/package-lock.json	lodash	4.17.11
-backend/Dockerfile	DS-0002	-
-backend/Dockerfile	DS-0031	-
-frontend/Dockerfile	DS-0002	-

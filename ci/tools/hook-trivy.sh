@@ -4,10 +4,12 @@
 # plan section 4.2: Critical always blocks, High blocks when a fixed version exists, and for a
 # Dockerfile any High or Critical misconfiguration blocks.
 #
-# The weaknesses seeded on purpose (SV-07: two vulnerable packages; SV-09: two naive Dockerfiles) pass
-# through ONE exact list, security/seeded-trivy.tsv, for this hook only (CI reports them all): a row is
+# The weakness seeded on purpose and still present (SV-07: two vulnerable packages; the two naive Dockerfiles of
+# SV-09 are fixed) passes through ONE exact list, security/seeded-trivy.tsv, for this hook only (CI reports it
+# all): a row is
 # "file<TAB>package<TAB>installed version" or "file<TAB>check id<TAB>-". A different package, another
-# version or another check is blocked. WP4.5 removes the rows as it fixes the weaknesses.
+# version or another check is blocked. WP4.5 removed the rows as it fixed the weaknesses and deleted the
+# file: with no file, nothing is accepted.
 #
 #   bash ci/tools/hook-trivy.sh backend/uv.lock frontend/Dockerfile
 # Needs bash, python3 and Trivy 0.76.1 (ci/tools/install-scan-tools.sh). The first run downloads
@@ -22,7 +24,6 @@ die() { printf 'hook-trivy: %s\n' "$1" >&2; exit 2; }
 command -v trivy >/dev/null || die "trivy is not installed - run: bash ci/tools/install-scan-tools.sh"
 found="$(trivy --version | awk 'NR==1 {print $2}')"
 [[ "$found" == "$TRIVY_PINNED" ]] || die "trivy $found is installed, $TRIVY_PINNED is pinned (plan D-12)"
-[[ -f "$TABLE" ]] || die "$TABLE is missing"
 (( $# > 0 )) || exit 0
 
 work="$(mktemp -d)"
@@ -54,7 +55,8 @@ work, table = Path(sys.argv[1]), Path(sys.argv[2])
 guide = "docs/secure-coding.md and the plan, section 4.2 (a fix, or a time-boxed exception: WP4.4)"
 
 allowed: set[tuple[str, str, str]] = set()
-for number, raw in enumerate(table.read_text(encoding="utf-8").splitlines(), 1):
+lines = table.read_text(encoding="utf-8").splitlines() if table.exists() else []
+for number, raw in enumerate(lines, 1):
     if not raw.strip() or raw.lstrip().startswith("#"):
         continue
     fields = raw.split("\t")

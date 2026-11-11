@@ -1,21 +1,45 @@
-# Kairos v0 - the as-is stack (plan WP2.1, SV-09). The same file runs on the Legion
-# (docker compose -f deploy/compose.yaml up --build) and on staging and production
-# (the as-is pipeline copies it next to .env, pulls and starts).
-#   - the API on 8000 and the Vite dev server on 5173 are published on 0.0.0.0;
-#   - no resource limits, no read-only root filesystem, capabilities and users at Docker's defaults;
-#   - images are the mutable :latest of the user's Docker Hub namespace (DOCKERHUB_USER).
+# Kairos - the runtime stack (plan WP2.1, WP4.5, WP5.3). The same file runs on the Legion, on staging and on
+# production; only the environment differs. SV-09 (containers that run as root, with every capability, a writable
+# root filesystem, no limit, every port on every interface, mutable images) is fixed here:
+#   - every service: read-only root filesystem (tmpfs for /tmp), no capability, no-new-privileges, memory and PID limits;
+#   - the database keeps only the five capabilities its entrypoint needs to hand its files to the postgres user;
+#   - the database is on an internal network (no route out) and nothing but the web tier publishes a port;
+#   - the web port listens on KAIROS_WEB_BIND, which is 127.0.0.1 until WP5.3 sets the host's lab address;
+#   - images are named by KAIROS_API_IMAGE and KAIROS_WEB_IMAGE: `local/...:dev` built by compose.dev.yaml on the
+#     Legion, and digests (name@sha256:...) pulled by deploy.sh on staging and production. PostgreSQL is the pin
+#     of ci/tools/tools.lock; `ci/tools/check-tools-lock.sh` and `ci/tools/check-container-hardening.py` keep both
+#     true (preflight runs them).
+# Secrets are files, never environment values (SV-01): Compose mounts each one under /run/secrets and the API and
+# the database read them through <NAME>_FILE. On the Legion `make dev-up` makes throwaway files in .dev-secrets/;
+# on staging and production KAIROS_SECRETS_DIR is /etc/kairos/secrets, where the OpenBao Agent renders them.
 name: kairos
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 256
+  restart: unless-stopped
 
 services:
   db:
-    image: postgres:17
-    restart: always
+    <<: *hardening
+    image: postgres:17.10-trixie@sha256:7958605b474b3d264a969cb3a123d6aa00ad1e1fe9da8a69984dabb704d93317
+    # What the official image's entrypoint needs to give the data directory to the postgres user, and nothing else.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    mem_limit: 512m
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: kairos
+      POSTGRES_DB: kairos
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
     volumes:
       - db-data:/var/lib/postgresql/data
+    tmpfs:
+      - /tmp
+      - /run/postgresql
+    networks: [data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -23,26 +47,51 @@ services:
       retries: 12
 
   api:
-    build: ../backend
-    image: ${DOCKERHUB_USER:-local}/kairos-api:latest
-    restart: always
+    <<: *hardening
+    image: ${KAIROS_API_IMAGE:-local/kairos-api:dev}
+    mem_limit: 512m
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      POSTGRES_HOST: db
+      POSTGRES_USER: kairos
+      POSTGRES_DB: kairos
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      JWT_SECRET_KEY_FILE: /run/secrets/jwt_secret_key
       GIT_SHA: ${GIT_SHA:-dev}
-    ports:
-      - "8000:8000"
+    secrets:
+      - db_password
+      - jwt_secret_key
+    tmpfs:
+      - /tmp
+    networks: [data, edge]
     depends_on:
       db:
         condition: service_healthy
 
   web:
-    build: ../frontend
-    image: ${DOCKERHUB_USER:-local}/kairos-web:latest
-    restart: always
+    <<: *hardening
+    image: ${KAIROS_WEB_IMAGE:-local/kairos-web:dev}
+    mem_limit: 128m
     ports:
-      - "5173:5173"
+      - "${KAIROS_WEB_BIND:-127.0.0.1}:8080:8080"
+    tmpfs:
+      - /tmp
+    networks: [edge]
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+
+# `data` has no route out of the host: the database cannot call anyone and no one outside can reach it.
+# `edge` joins the web tier and the API (the API needs it for its outbound call to the model provider, WP4.7).
+networks:
+  data:
+    internal: true
+  edge: {}
+
+secrets:
+  db_password:
+    file: ${KAIROS_SECRETS_DIR:-../.dev-secrets}/db_password
+  jwt_secret_key:
+    file: ${KAIROS_SECRETS_DIR:-../.dev-secrets}/jwt_secret_key
 
 volumes:
   db-data:

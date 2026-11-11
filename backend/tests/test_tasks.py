@@ -50,3 +50,38 @@ def test_unknown_task_is_404(client, alice):
 
 def test_empty_title_is_refused(client, alice):
     assert client.post("/api/tasks", json={"title": ""}, headers=alice).status_code == 422
+
+
+# SV-02: the search text is data, never part of the SQL.
+def test_search_payload_returns_only_my_tasks(client, alice, bob):
+    make_task(client, alice, "alice-private")
+    make_task(client, bob, "bob-note")
+    payload = "%') OR 1=1 --"
+    found = client.get("/api/tasks", params={"search": payload}, headers=bob)
+    assert found.status_code == 200
+    assert found.json() == []
+
+
+def test_search_with_a_quote_is_not_a_server_error(client, alice):
+    make_task(client, alice, "It's done")
+    found = client.get("/api/tasks", params={"search": "'"}, headers=alice)
+    assert found.status_code == 200
+    assert [t["title"] for t in found.json()] == ["It's done"]
+
+
+def test_search_union_payload_leaks_nothing(client, alice, bob):
+    make_task(client, bob, "bob-note")
+    payload = "x') UNION SELECT id, username, password_hash, 1, id FROM users --"
+    found = client.get("/api/tasks", params={"search": payload}, headers=alice)
+    assert found.status_code == 200
+    assert found.json() == []
+    assert "bob" not in found.text
+
+
+def test_search_treats_percent_and_underscore_literally(client, alice):
+    make_task(client, alice, "100% done")
+    make_task(client, alice, "plain task")
+    found = client.get("/api/tasks", params={"search": "%"}, headers=alice).json()
+    assert [t["title"] for t in found] == ["100% done"]
+    found = client.get("/api/tasks", params={"search": "_"}, headers=alice).json()
+    assert found == []

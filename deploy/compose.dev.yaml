@@ -1,0 +1,15 @@
+# Kairos - the Legion's overlay (plan WP4.5): builds the two images from the working tree and publishes the API
+# for `make smoke` and the Swagger page. Every port is bound to 127.0.0.1: nothing of a development stack is
+# reachable from the network (ci/tools/check-container-hardening.py refuses another address).
+# Used as: docker compose -f deploy/compose.yaml -f deploy/compose.dev.yaml up --build -d --wait   (make dev-up)
+services:
+  api:
+    build:
+      context: ../backend
+      args:
+        GIT_SHA: ${GIT_SHA:-dev}
+    ports:
+      - "127.0.0.1:8000:8000"
+  web:
+    build:
+      context: ../frontend

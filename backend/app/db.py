@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy import create_engine
-from sqlalchemy.engine import make_url
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -16,7 +16,7 @@ class Base(DeclarativeBase):
     pass
 
 
-def make_engine(url: str):
+def make_engine(url: str | URL):
     parsed = make_url(url)
     if parsed.get_backend_name() == "sqlite":
         options: dict = {"connect_args": {"check_same_thread": False}}

@@ -45,7 +45,7 @@ export function TaskList() {
         value={search}
         onChange={(e) => {
           setSearch(e.target.value);
-          searchLater(e.target.value);
+          void searchLater(e.target.value);
         }}
       />
       <form onSubmit={create} aria-label="New task">

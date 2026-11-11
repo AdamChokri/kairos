@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # ci/scripts/run-tool.sh [options] TOOL [ARGS...] - runs one pinned tool image the sandboxed way (plan WP4.2, D-12).
 # TOOL is a name of ci/tools/tools.lock, or `node`. The image is always the digest of the lock. The container:
-#   - is removed afterwards, has a read-only root filesystem and one tmpfs at /tmp, no capability, no new privilege;
+#   - is removed afterwards, has a read-only root filesystem and one tmpfs at /tmp (Docker mounts it noexec: nothing can run
+#     from it, unless --exec-tmp is given), no capability, no new privilege;
 #   - runs as the caller's own user and group, with a 2 GB memory limit and a process limit;
 #   - sees the workspace at /src READ-ONLY and a writable reports directory at /reports;
 #   - has no network unless --network is given, and never gets the Docker socket.
 # Options (before the tool name):
 #   --network            allow the network (the tool downloads its rules, packages or database)
+#   --exec-tmp           mount the /tmp tmpfs with exec (nosuid and nodev stay): for a tool that downloads programs into its cache
+#                        under /tmp and runs them from there. Only the Sonar scanner, which provisions its JRE that way (D-43)
 #   --hosts              add the lab names of this machine's /etc/hosts (*.kairos.lab) to the container, which does not read it
 #   --rw                 mount the workspace read-write at /src (only build_test.sh does this: it installs and builds)
 #   --env NAME           pass the environment variable NAME by name, never by value (a secret stays out of the command line)
@@ -28,6 +31,7 @@ source "$ROOT/ci/scripts/lib.sh"
 CONTROL=run-tool
 
 network=none
+tmp_mount=/tmp
 add_hosts=0
 src_mode=ro
 workdir=/src
@@ -36,6 +40,7 @@ extra=()
 while (( $# > 0 )); do
   case "$1" in
     --network) network=bridge; shift ;;
+    --exec-tmp) tmp_mount=/tmp:rw,exec,nosuid,nodev; shift ;;
     --hosts) add_hosts=1; shift ;;
     --rw) src_mode=rw; shift ;;
     --env) [[ ${2:-} =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || die "--env wants a variable name"; extra+=(-e "$2"); shift 2 ;;
@@ -63,7 +68,7 @@ if (( add_hosts )); then
 fi
 
 mkdir -p "$ROOT/reports"
-exec docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+exec docker run --rm --read-only --tmpfs "$tmp_mount" --cap-drop ALL --security-opt no-new-privileges \
   --user "$(id -u):$(id -g)" --memory 2g --pids-limit 512 -e HOME=/tmp \
   --network "$network" "${hosts[@]}" "${extra[@]}" "${entrypoint[@]}" \
   -v "$ROOT:/src:$src_mode" -v "$ROOT/reports:/reports" -w "$workdir" \

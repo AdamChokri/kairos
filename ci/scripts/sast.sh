@@ -49,7 +49,10 @@ if [[ ${BRANCH_NAME:-} == main && -n ${SONAR_TOKEN:-} ]]; then
     blocked=$((blocked + 1))
   fi
   rc=0
-  run_tool --network --hosts --env SONAR_TOKEN --env SONAR_USER_HOME --env GIT_CONFIG_COUNT \
+  # The scanner downloads its JRE into SONAR_USER_HOME (under /tmp) and runs it from there, but Docker mounts a tmpfs noexec:
+  # this one container gets a /tmp that can execute (--exec-tmp, D-43). Its root stays read-only, no capability is added back,
+  # and the tmpfs vanishes with the container.
+  run_tool --network --hosts --exec-tmp --env SONAR_TOKEN --env SONAR_USER_HOME --env GIT_CONFIG_COUNT \
     --env GIT_CONFIG_KEY_0 --env GIT_CONFIG_VALUE_0 sonar-scanner \
     -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.projectKey="$SONAR_PROJECT_KEY" -Dsonar.projectName=Kairos \
     -Dsonar.projectVersion="$SONAR_PROJECT_VERSION" -Dsonar.projectBaseDir=/src \

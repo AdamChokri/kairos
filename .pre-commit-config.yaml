@@ -9,10 +9,10 @@
 # `pre-commit autoupdate --freeze` is NOT used, because it takes the newest release whatever its age;
 # ci/tools/verify-hook-revs.sh checks every SHA against its tag. Change a pin through a pull request.
 #
-# Hooks look at the files of the commit or push only. A finding of a weakness seeded on purpose (plan
-# section 5) passes only through an exact list, never through an ignore file or a wider rule. WP4.5 fixed
-# SV-01 and SV-09, so security/seeded-secrets.tsv (Gitleaks) is gone; security/seeded-trivy.tsv (Trivy)
-# keeps the two rows of SV-07 until the Dependabot pull requests merge, and goes with them.
+# Hooks look at the files of the commit or push only. WP4.5 fixed every weakness the hooks used to let
+# through (SV-01, SV-07 and SV-09), so the two exact lists, security/seeded-secrets.tsv and
+# security/seeded-trivy.tsv, are gone: a finding blocks, whoever wrote it, and an exemption follows
+# the register of plan section 4.3 (security/exceptions.yaml), never a wider rule.
 minimum_pre_commit_version: "4.7.0"
 default_stages: [pre-commit]
 

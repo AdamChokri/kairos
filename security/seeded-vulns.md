@@ -26,8 +26,8 @@ Chosen by installing them and reading scanner output (2026-11-05). Both install 
 
 | Package | Version | Headline advisory | Severity | Fixed in | What a Dependabot security pull request proposes |
 |---|---|---|---|---|---|
-| `pyjwt` (Python) | 2.3.0 | CVE-2022-29217 (GHSA-ffqj-6fqr-9h24), algorithm confusion: some public-key formats are not refused as HMAC secrets | High (7.5) | 2.4.0 | 2.15.1 or newer, which also closes the later PyJWT advisories |
-| `lodash` (npm) | 4.17.11 | CVE-2019-10744 (GHSA-jf85-cpcp-j695), prototype pollution in `defaultsDeep` | Critical (9.1) | 4.17.12 | 4.18.1 or newer |
+| `pyjwt` (Python) | 2.3.0 | CVE-2022-29217 (GHSA-ffqj-6fqr-9h24), algorithm confusion: some public-key formats are not refused as HMAC secrets | High (7.5) | 2.4.0 | 2.15.0 (pull request #4, which also closes the later PyJWT advisories) |
+| `lodash` (npm) | 4.17.11 | CVE-2019-10744 (GHSA-jf85-cpcp-j695), prototype pollution in `defaultsDeep` | Critical (9.1) | 4.17.12 | 4.18.1 (pull request #3) |
 
 A scanner lists more advisories than the headline for each package: `pip-audit` reports 14 for PyJWT 2.3.0 and `npm audit` 6 for lodash 4.17.11 on 2026-11-05. The headline is the one that makes the package High or Critical *with a fix*, which is what the gate looks at. Kairos signs and verifies with HS256 and a fixed algorithm list, and calls only `lodash/debounce`, so the headline flaws are not reachable through its own use; a scanner reports the package anyway, which is how vulnerable dependencies are usually found.
 
@@ -59,6 +59,7 @@ One row per weakness, added by the pull request that fixes it (WP4.5 onwards): t
 | SV-05 | `fix(sec): SV-05 unsalted MD5 password hashes, with its regression test` | `backend/tests/test_security.py` (six tests) | a new account's `password_hash` starts with `$argon2id$` (`select username, password_hash from users`); Bandit reports nothing on the backend |
 | SV-03 | `fix(sec): SV-03 stored XSS in the comment list, with its regression test` | `frontend/src/CommentList.test.tsx` (three tests) | `npm run lint` has no `react/no-danger` error; a comment `<img src=x onerror=...>` is shown as text; the CSP half of the fix arrives with the nginx headers (SV-08, WP5.4) |
 | SV-09 | `fix(sec): SV-09 root containers on mutable images, with its regression test` | `ci/tools/check-container-hardening.py` and `ci/tools/check-tools-lock.sh` (fifteen refusals and a pass in section 7, the pin checks in section 4 of `ci/tools/test-ci-scripts.sh`) | `trivy config backend/Dockerfile` and `frontend/Dockerfile` report 0 misconfigurations (before: DS-0001, DS-0002, DS-0031); `docker compose -f deploy/compose.yaml -f deploy/compose.dev.yaml exec api id` prints `uid=10001`; `printenv ADMIN_API_KEY` prints nothing; `docker compose ps` lists only `127.0.0.1:8080` and `127.0.0.1:8000` |
+| SV-07 | `fix(sec): SV-07 vulnerable PyJWT and lodash, with its regression test` | `backend/tests/test_dependencies.py` and `frontend/src/dependencies.test.ts` (one test each) | Dependabot pull requests #4 (PyJWT 2.3.0 to 2.15.0) and #3 (lodash 4.17.11 to 4.18.1) merged; `trivy fs --scanners vuln --severity HIGH,CRITICAL backend/uv.lock` and `frontend/package-lock.json` list nothing; `security/seeded-trivy.tsv` is deleted |
 
 ## Not seeded
 

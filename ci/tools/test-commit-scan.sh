@@ -72,6 +72,19 @@ setup
 git add -A
 expect "a listed file that is not staged is not checked" 0
 
+# WP4.5 deleted security/seeded-secrets.tsv: with no list, nothing is accepted.
+setup
+rm security/seeded-secrets.tsv
+printf 'JWT_SECRET_KEY = "%s"\n' "$(fake)" >app/seeded.py
+git add -A
+expect "with no list file, a secret is blocked" 1
+
+setup
+rm security/seeded-secrets.tsv
+echo 'x = 1' >app/plain.py
+git add -A
+expect "with no list file, a commit without secrets passes" 0
+
 if [[ "$failures" -eq 0 ]]; then
   echo "All commit-scan checks passed."
 else

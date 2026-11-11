@@ -71,9 +71,11 @@ Gitleaks at commit time and in CI; the Semgrep rule above at push time and in CI
 - CWE-798 Use of Hard-coded Credentials · CWE-321 Use of Hard-coded Cryptographic Key
 - ASVS 5.0.0: 13.3.1 (secrets management, level 2: "secrets must not be included in application source code"), 9.1.3 (key material comes from a trusted pre-configured source, level 1)
 
-### The two secrets Kairos v0 keeps on purpose
+### How Kairos reads its secrets
 
-`security/seeded-secrets.tsv` lists the two fake values that SV-01 puts in the repository. `ci/tools/commit-scan.sh` accepts exactly those two findings and blocks every other one, and it blocks a change to a listed file that no longer matches the list. The list shrinks to nothing when SV-01 is fixed (WP4.5).
+Every secret is a file, and the variable `<NAME>_FILE` names it: the API reads `JWT_SECRET_KEY_FILE` and `POSTGRES_PASSWORD_FILE`, the database reads `POSTGRES_PASSWORD_FILE` too. The API refuses to start without a signing key of at least 32 bytes (`backend/tests/test_config.py`), and a secret in a plain environment variable is never read. On the Legion, `make dev-up` makes throwaway files in `.dev-secrets/` (`ci/tools/dev-secrets.sh`, ignored by Git); on staging and production the OpenBao Agent renders them (WP5.3).
+
+Kairos v0 committed two fake secrets on purpose (SV-01). They are gone from the files, but a public history keeps them: rewriting it would not take back the copies that exist, and would break every signed commit and pull request. The history scan of the pipeline compares what it finds with `security/gitleaks-baseline.json`, which lists exactly those two findings by fingerprint (decision D-33); any other secret, in any commit, is still reported. The values were fake and are replaced anyway.
 
 ---
 

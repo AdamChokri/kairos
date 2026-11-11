@@ -64,6 +64,12 @@ expect "a new Dockerfile check is blocked"                  new-check 1 backend/
 expect "files that are not scanned are skipped"             seeded 0 backend/pyproject.toml
 expect "no files, nothing to do"                            seeded 0
 
+# WP4.5 deleted security/seeded-trivy.tsv: with no list, even the former seeded findings block.
+mv security/seeded-trivy.tsv "$WORK/seeded-trivy.tsv.kept"
+expect "with no list file, the former seeded finding blocks" seeded 1 backend/uv.lock
+expect "with no list file, a clean lockfile passes"          none 0 backend/uv.lock
+mv "$WORK/seeded-trivy.tsv.kept" security/seeded-trivy.tsv
+
 # the message names the finding and where to read more
 PATH="$WORK/bin:$PATH" STUB_CASE=other-package bash "$SCRIPT" backend/uv.lock > "$WORK/out.txt" 2>&1 || true
 if grep -q 'BLOCKED  CVE-2099-0001 (HIGH) in requests 2.0.0, backend/uv.lock' "$WORK/out.txt" && grep -q 'Fixed in 2.1.0' "$WORK/out.txt"; then

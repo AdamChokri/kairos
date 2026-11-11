@@ -1,0 +1,42 @@
+[
+  {
+    "RuleID": "generic-api-key",
+    "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+    "StartLine": 9,
+    "EndLine": 9,
+    "StartColumn": 2,
+    "EndColumn": 68,
+    "Match": "JWT_SECRET_KEY = \"REDACTED\"",
+    "Secret": "REDACTED",
+    "File": "backend/app/config.py",
+    "SymlinkFile": "",
+    "Commit": "237bbccad3e6cf4d73ec0789dfc9226fbe05c5d3",
+    "Entropy": 3.6379185,
+    "Author": "AdamChokri",
+    "Email": "152724341+AdamChokri@users.noreply.github.com",
+    "Date": "2026-11-06T13:25:22Z",
+    "Message": "feat: Kairos v0 with seeded weaknesses and the as-is pipeline (#2)\n\n* docs: align the P1 scripts, records and decisions with the as-built lab (D-24)\n\n* chore(lab): CAP-01 record for P2 and its helper\n\n* feat(app): Kairos v0 with the seeded weaknesses (WP2.1)\n\n* feat(as-is): the as-is pipeline, the deploy account and sshpass as code (WP2.2)\n\n* fix(as-is): stamp the deployed version with the commit (E-39)\n\n* docs(lab): the as-is job, hosts and credentials (WP2.2)\n\n* docs(as-is): pipeline map, weakness analysis and threat model\n\nCorrections found against the lab: ASIS-01 (T-10, W-12: the Docker login leaves the token in .docker/config.json on the agent). Records: E-30 to E-33, E-39 to E-41, D-25, D-26, D-28, D-30; NODE-01, DEP-01, UPD-05.\n\n* docs(evidence): EV-01 and EV-02 of P2",
+    "Tags": [],
+    "Fingerprint": "237bbccad3e6cf4d73ec0789dfc9226fbe05c5d3:backend/app/config.py:generic-api-key:9"
+  },
+  {
+    "RuleID": "generic-api-key",
+    "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+    "StartLine": 5,
+    "EndLine": 5,
+    "StartColumn": 2,
+    "EndColumn": 43,
+    "Match": "POSTGRES_PASSWORD=REDACTED",
+    "Secret": "REDACTED",
+    "File": "deploy/.env",
+    "SymlinkFile": "",
+    "Commit": "237bbccad3e6cf4d73ec0789dfc9226fbe05c5d3",
+    "Entropy": 4.0535088,
+    "Author": "AdamChokri",
+    "Email": "152724341+AdamChokri@users.noreply.github.com",
+    "Date": "2026-11-06T13:25:22Z",
+    "Message": "feat: Kairos v0 with seeded weaknesses and the as-is pipeline (#2)\n\n* docs: align the P1 scripts, records and decisions with the as-built lab (D-24)\n\n* chore(lab): CAP-01 record for P2 and its helper\n\n* feat(app): Kairos v0 with the seeded weaknesses (WP2.1)\n\n* feat(as-is): the as-is pipeline, the deploy account and sshpass as code (WP2.2)\n\n* fix(as-is): stamp the deployed version with the commit (E-39)\n\n* docs(lab): the as-is job, hosts and credentials (WP2.2)\n\n* docs(as-is): pipeline map, weakness analysis and threat model\n\nCorrections found against the lab: ASIS-01 (T-10, W-12: the Docker login leaves the token in .docker/config.json on the agent). Records: E-30 to E-33, E-39 to E-41, D-25, D-26, D-28, D-30; NODE-01, DEP-01, UPD-05.\n\n* docs(evidence): EV-01 and EV-02 of P2",
+    "Tags": [],
+    "Fingerprint": "237bbccad3e6cf4d73ec0789dfc9226fbe05c5d3:deploy/.env:generic-api-key:5"
+  }
+]

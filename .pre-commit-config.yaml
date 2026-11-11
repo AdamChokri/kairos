@@ -70,7 +70,7 @@ repos:
   - repo: local
     hooks:
       - id: gitleaks
-        name: gitleaks (staged changes; the seeded secrets of SV-01 are listed in security/seeded-secrets.tsv)
+        name: gitleaks (staged changes)
         entry: bash ci/tools/commit-scan.sh
         language: system
         pass_filenames: false

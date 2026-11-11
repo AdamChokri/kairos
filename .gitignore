@@ -10,6 +10,7 @@
 *.pfx
 *.jks
 **/secrets/
+.dev-secrets/
 .vault-token
 *.secret
 

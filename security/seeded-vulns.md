@@ -47,6 +47,14 @@ Run each command, read what it shows, and tick the line only when it showed the 
 - [x] SV-10 the as-is job exists and its console shows Jenkins' warning about Groovy string interpolation (WP2.2)
 - [x] SV-11 the hosts accept password logins for the deploy account (WP2.2): `ssh dso-staging "sudo sshd -T -C user=deploy,host=lab,addr=127.0.0.1 | grep ^passwordauthentication"` prints `passwordauthentication yes`; the same on `dso-prod`
 
+## Fixed
+
+One row per weakness, added by the pull request that fixes it (WP4.5 onwards): the commit message, the regression test that was committed red first, and the proof. The checklist above stays as it was: it shows each weakness **present**, on `v0.1-as-is`.
+
+| ID | Fixed by | Regression test | Proof |
+|---|---|---|---|
+| SV-01 | `fix(sec): SV-01 hard-coded secrets with its regression test` | `backend/tests/test_config.py` | `bash security/check-seeded.sh` → `MISSING SV-01`; `git ls-files deploy/.env` prints nothing; `make dev-up` makes the secrets the stack reads |
+
 ## Not seeded
 
 Two ordinary design choices are not seeded weaknesses and no work package fixes them on purpose: the single-page app keeps its token in `localStorage` (ASVS V3, looked at again by the WP5.4 pentest), and the unit tests run on SQLite while the Compose smoke test (`ci/as-is/smoke.sh`) runs the same API on PostgreSQL 17.

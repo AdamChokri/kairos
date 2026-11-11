@@ -230,3 +230,10 @@ Jenkins accounts `admin` (Platform Admin, break-glass only), `adam` (Developer a
 *Watch:* run `make hooks-install` again after any change of a hook revision. NPM-01 (only if the npm of the pinned image is older than 11.10): the line of `frontend/.npmrc` is ignored until NODE-01 re-pins the image; `ci/tools/lock-age.py` and the cooldown carry the rule meanwhile.
 *Alternative:* a lockfile of the hooks' dependencies (pre-commit has none, and a vendored requirements file per hook is heavy to keep true).
 *Pull request:* the required-check pull request (`feat/p4-required-check`)
+
+🧭 **D-35 — The first commit of Kairos Assist skips the one hook that refuses it, by id** · 2026-11-12 · adds to WP3.2 and WP4.7
+*Why:* Assist v1 has three weaknesses on purpose (SV-12 to SV-14), so the ESLint hook (`react/no-danger`) refuses its commit. The red-before-green order of WP4.5 applies to the feature too: v1, then for each weakness a failing test and its fix, in that order in the history.
+*How:* `SKIP=eslint git commit …` for the v1 commit only. `SKIP` names a hook; the others (ruff, Bandit, Gitleaks, the file checks) ran. `--no-verify` was not used: it would switch off the secret scanner as well. The refusal of the hook was shown first (EV-28). The branch was pushed once, with the three fixes already in it, so the Semgrep push hook had nothing to refuse and no `SKIP` was used on a push.
+*Watch:* `SKIP` was used for that one commit only; any other use is a finding. Jenkins never showed a red build for Assist: the failing runs of the three tests (10, 17 and 24 failed) and the three findings of v1 were produced locally (pytest, ESLint, Semgrep), and the report must say so.
+*Alternative:* `--no-verify` (rejected: it hides the secret scanner) · not committing v1 · pushing v1 and the red tests in steps, as the guide does (two more builds, one red; not done, to save time).
+*Pull request:* the Assist pull request (`feat/p4-assist`)

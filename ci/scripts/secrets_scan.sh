@@ -18,7 +18,10 @@ gitleaks_run() {
   [[ $rc == 0 || $rc == 2 ]] || die "gitleaks ($name) failed with exit $rc"
 }
 
-gitleaks_run files dir /src
+# The files scan names its folder `.` (run-tool.sh starts in /src), so that Gitleaks reports paths relative to the
+# checkout: the allowlist of .gitleaks.toml (D-23) matches `ci/jenkins/plugins.txt`, and `dir /src` reported
+# `/src/ci/jenkins/plugins.txt`, which it never matched (31 findings instead of the two seeded fakes).
+gitleaks_run files dir .
 history=(git /src)
 [[ -f $ROOT/security/gitleaks-baseline.json ]] && history+=(--baseline-path /src/security/gitleaks-baseline.json)
 gitleaks_run history "${history[@]}"

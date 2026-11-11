@@ -5,6 +5,9 @@ export const API_URL: string =
 
 const TOKEN_KEY = "kairos_token";
 
+// Sent on the window when the API says the token is no longer good: the app returns to the log-in form.
+export const SESSION_ENDED = "kairos:session-ended";
+
 export interface Task {
   id: number;
   title: string;
@@ -33,8 +36,22 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
   const response = await fetch(`${API_URL}${path}`, { ...init, headers });
   if (!response.ok) {
-    const detail = await response.json().catch(() => ({}));
-    throw new Error(typeof detail.detail === "string" ? detail.detail : `Error ${response.status}`);
+    // A 401 on any call but the log-in itself means the token has expired or was revoked.
+    if (response.status === 401 && !path.startsWith("/api/auth/")) {
+      clearToken();
+      window.dispatchEvent(new Event(SESSION_ENDED));
+      throw new Error("Your session has ended. Log in again.");
+    }
+    // A server fault has nothing the person can act on in its own words: say what to do instead.
+    if (response.status >= 500) throw new Error("The server had a problem. Try again in a moment.");
+    const body: unknown = await response.json().catch(() => null);
+    const detail = (body as { detail?: unknown } | null)?.detail;
+    if (typeof detail === "string") throw new Error(detail);
+    throw new Error(
+      response.status === 422
+        ? "Some of the values are not accepted. Check them and try again."
+        : `Something went wrong (error ${response.status}).`,
+    );
   }
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }

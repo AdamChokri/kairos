@@ -237,3 +237,10 @@ Jenkins accounts `admin` (Platform Admin, break-glass only), `adam` (Developer a
 *Watch:* `SKIP` was used for that one commit only; any other use is a finding. Jenkins never showed a red build for Assist: the failing runs of the three tests (10, 17 and 24 failed) and the three findings of v1 were produced locally (pytest, ESLint, Semgrep), and the report must say so.
 *Alternative:* `--no-verify` (rejected: it hides the secret scanner) · not committing v1 · pushing v1 and the red tests in steps, as the guide does (two more builds, one red; not done, to save time).
 *Pull request:* the Assist pull request (`feat/p4-assist`)
+
+🧭 **D-40 — The interface is one theme, Graphite, built from files and not from packages, inside the page's own policy** · 2026-11-12 · reinstates UI-01 (cut by D-36)
+*Why:* the interface is what a jury sees first, and the plain one showed browser defaults. A designed one must not cost a control: the web tier refuses inline styles, inline scripts and every host but its own.
+*How:* one stylesheet (`src/styles.css`), one variable font as a file under its licence (`src/fonts/`), inline SVG for the mark, no new dependency; a dark rail and a light page, raspberry for the one primary action; the states that make it feel finished. The suggestion and the comments stay text; `react/no-danger` stays an error; 30 frontend tests.
+*Watch:* a change that needs a style attribute, an external font or a package is a change of this decision; contrast is computed (lowest 4.52:1) and is re-checked when a colour moves.
+*Alternative:* a component library or a CSS framework (packages, a supply chain, and styles injected at run time that the policy refuses) · two themes, light and dark (twice the states to test) · the plain interface.
+*Pull request:* the Assist pull request (`feat/p4-assist`), which carries the interface as its last commit (one push, one build)

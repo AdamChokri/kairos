@@ -8,21 +8,26 @@ import json
 import re
 from types import SimpleNamespace
 
+import httpx2
 import pytest
+from openai import APIConnectionError, APITimeoutError, AuthenticationError
 
 from app import assist, config
 
 
 class ScriptedClient:
-    """A model that answers with `content`, and records the arguments of every call."""
+    """A model that answers with `content` (or fails with `error`), and records every call."""
 
-    def __init__(self, content: str) -> None:
+    def __init__(self, content: str, error: Exception | None = None) -> None:
         self.calls: list[dict] = []
         self._content = content
+        self._error = error
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
 
     def _create(self, **arguments):
         self.calls.append(arguments)
+        if self._error is not None:
+            raise self._error
         message = SimpleNamespace(content=self._content)
         return SimpleNamespace(choices=[SimpleNamespace(message=message)])
 
@@ -37,8 +42,8 @@ def assist_on(monkeypatch):
 def model(monkeypatch, assist_on):
     """model("...") installs a scripted model that answers so; the result records the calls."""
 
-    def install(content: str) -> ScriptedClient:
-        scripted = ScriptedClient(content)
+    def install(content: str, error: Exception | None = None) -> ScriptedClient:
+        scripted = ScriptedClient(content, error)
         monkeypatch.setattr(assist, "make_client", lambda: scripted)
         return scripted
 
@@ -177,3 +182,69 @@ def test_the_provider_sees_an_opaque_user_id(client, alice, bob, model):
         assert name not in json.dumps(scripted.calls[-1])
         seen[name] = first
     assert seen["alice"] != seen["bob"]
+
+
+# --- SV-14: what the call may cost --------------------------------------------------------------
+
+REQUEST = httpx2.Request("POST", "https://api.deepseek.com/chat/completions")
+
+
+def test_every_call_is_bounded(client, alice, model):
+    scripted = model(VALID)
+    ask(client, alice)
+    call = scripted.calls[0]
+    assert call["model"] == "deepseek-flash"
+    assert call["max_tokens"] == 400
+    assert call["timeout"] == 20
+    assert call["extra_body"]["thinking"] == {"type": "disabled"}
+    assert call["response_format"] == {"type": "json_object"}
+
+
+def test_the_sixth_call_of_a_user_in_a_minute_is_refused(client, alice, bob, model):
+    scripted = model(VALID)
+    assert [ask(client, alice).status_code for _ in range(5)] == [200] * 5
+    sixth = ask(client, alice)
+    assert sixth.status_code == 429
+    assert 1 <= int(sixth.headers["Retry-After"]) <= 60
+    assert len(scripted.calls) == 5  # the refused call never reached the provider
+    assert ask(client, bob).status_code == 200  # the budget is the user's own
+
+
+def test_the_limiter_is_a_sliding_window_per_key():
+    now = [1000.0]
+    limiter = assist.RateLimiter(limit=5, window=60, clock=lambda: now[0])
+    assert [limiter.hit("u") for _ in range(5)] == [0] * 5
+    now[0] = 1010.0
+    assert limiter.hit("u") == 50  # the oldest call leaves the window in 50 seconds
+    assert limiter.hit("v") == 0  # another key has its own budget
+    now[0] = 1060.0  # all five calls have left the window; the refusal did not count
+    assert [limiter.hit("u") for _ in range(5)] == [0] * 5
+    assert limiter.hit("u") > 0
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        APITimeoutError(request=REQUEST),
+        APIConnectionError(message="secret-detail", request=REQUEST),
+        AuthenticationError(
+            "secret-detail", response=httpx2.Response(401, request=REQUEST), body=None
+        ),
+    ],
+    ids=["timeout", "connection", "rejected key"],
+)
+def test_a_provider_failure_is_a_502_that_says_nothing(client, alice, model, error):
+    model(VALID, error)
+    response = ask(client, alice)
+    assert response.status_code == 502
+    assert response.json() == {"detail": "Kairos Assist is unavailable"}
+
+
+def test_a_missing_provider_key_is_a_502_that_names_no_variable(
+    client, alice, assist_on, monkeypatch
+):
+    monkeypatch.setattr(config, "ASSIST_PROVIDER", "deepseek")
+    monkeypatch.delenv("DEEPSEEK_API_KEY_FILE", raising=False)
+    response = ask(client, alice)
+    assert response.status_code == 502
+    assert "DEEPSEEK" not in response.text

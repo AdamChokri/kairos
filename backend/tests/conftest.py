@@ -4,7 +4,14 @@ The real PostgreSQL 17 is exercised by the smoke test of the Compose stack (ci/a
 """
 
 import os
+import secrets
+import tempfile
+from pathlib import Path
 
+# The signing key is read from a file (SV-01): a throwaway one, new for every run.
+_key_file = Path(tempfile.mkdtemp(prefix="kairos-test-")) / "jwt_secret_key"
+_key_file.write_text(secrets.token_urlsafe(48))
+os.environ["JWT_SECRET_KEY_FILE"] = str(_key_file)
 os.environ["DATABASE_URL"] = "sqlite://"
 
 import pytest  # noqa: E402
@@ -12,6 +19,13 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.db import Base, engine  # noqa: E402
 from app.main import app  # noqa: E402
+
+
+@pytest.fixture(scope="session", autouse=True)
+def remove_key_file():
+    yield
+    _key_file.unlink(missing_ok=True)
+    _key_file.parent.rmdir()
 
 
 @pytest.fixture

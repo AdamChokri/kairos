@@ -4,12 +4,11 @@
 # plan section 4.2: Critical always blocks, High blocks when a fixed version exists, and for a
 # Dockerfile any High or Critical misconfiguration blocks.
 #
-# The weakness seeded on purpose and still present (SV-07: two vulnerable packages; the two naive Dockerfiles of
-# SV-09 are fixed) passes through ONE exact list, security/seeded-trivy.tsv, for this hook only (CI reports it
-# all): a row is
-# "file<TAB>package<TAB>installed version" or "file<TAB>check id<TAB>-". A different package, another
-# version or another check is blocked. WP4.5 removed the rows as it fixed the weaknesses and deleted the
-# file: with no file, nothing is accepted.
+# There is no list of accepted findings: WP4.5 fixed the weaknesses that were seeded (SV-07 by the Dependabot
+# pull requests, SV-09 by the new Dockerfiles) and deleted security/seeded-trivy.tsv. The hook still reads that
+# file when it exists ("file<TAB>package<TAB>installed version", or "file<TAB>check id<TAB>-"), which is what
+# ci/tools/test-hook-trivy.sh proves; with no file, nothing is accepted. A finding that must wait is an
+# exemption of the register (security/exceptions.yaml, plan section 4.3), never a list.
 #
 #   bash ci/tools/hook-trivy.sh backend/uv.lock frontend/Dockerfile
 # Needs bash, python3 and Trivy 0.76.1 (ci/tools/install-scan-tools.sh). The first run downloads

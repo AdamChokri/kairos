@@ -1,18 +1,13 @@
 """POST /api/assist: a note in, a task suggestion out (D-20, WP4.7). Off unless ASSIST_ENABLED."""
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
 
 from app import assist, config
 from app.db import DbSession
 from app.deps import CurrentUser
-from app.schemas import AssistSuggestion
+from app.schemas import AssistIn, AssistSuggestion
 
 router = APIRouter(prefix="/api/assist", tags=["assist"])
-
-
-class AssistIn(BaseModel):
-    note: str
 
 
 @router.post("")

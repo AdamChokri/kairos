@@ -74,3 +74,9 @@ class AssistSuggestion(BaseModel):
 
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(default="", max_length=1000)
+
+
+class AssistIn(BaseModel):
+    """The note a user gives Kairos Assist: bounded, because it is sent to a third party (SV-13)."""
+
+    note: str = Field(min_length=1, max_length=1000)

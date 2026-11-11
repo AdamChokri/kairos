@@ -1,0 +1,37 @@
+rules:
+  - id: kairos.llm-call-unbounded
+    languages: [python]
+    severity: ERROR
+    message: >-
+      A model call leaves a limit at the provider's default. What: DeepSeek's defaults are thinking mode
+      on and up to 64K output tokens (8K without thinking), and the OpenAI client waits up to ten minutes.
+      Why it matters: one request, or a loop of them, can run up the API bill or hold the service until
+      the account's capacity is used (OWASP LLM10 Unbounded Consumption). How to fix: set all three on
+      every call, max_tokens=400, timeout=20 and extra_body={"thinking": {"type": "disabled"}}, and limit
+      the calls a user can make per minute. Guide: docs/secure-coding.md#unbounded-model-calls
+    metadata:
+      category: security
+      owasp:
+        - "LLM10:2025 Unbounded Consumption"
+      cwe:
+        - "CWE-770: Allocation of Resources Without Limits or Throttling"
+      asvs:
+        - "v5.0.0-V2"
+      confidence: HIGH
+      likelihood: HIGH
+      impact: MEDIUM
+      seeded: SV-14
+      guide: docs/secure-coding.md#unbounded-model-calls
+      references:
+        - https://github.com/AdamChokri/kairos/blob/main/docs/secure-coding.md#unbounded-model-calls
+    pattern-either:
+      - patterns:
+          - pattern: $CLIENT.chat.completions.create(...)
+          - pattern-not: $CLIENT.chat.completions.create(..., max_tokens=$N, ...)
+      - patterns:
+          - pattern: $CLIENT.chat.completions.create(...)
+          - pattern-not: $CLIENT.chat.completions.create(..., timeout=$T, ...)
+      - patterns:
+          - pattern: $CLIENT.chat.completions.create(...)
+          - pattern-not: |
+              $CLIENT.chat.completions.create(..., extra_body={..., "thinking": {"type": "disabled"}, ...}, ...)

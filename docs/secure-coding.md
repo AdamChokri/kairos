@@ -148,6 +148,8 @@ Render the value as text. React escapes text children, so markup in the value is
 
 If HTML really is required (a rich-text feature), sanitize it with a maintained library on a trusted layer first, and add a Content-Security-Policy that forbids inline script, so a missed case is still contained (WP5.3, SV-08).
 
+The same holds for text a language model wrote (SV-12, Kairos Assist): the model's answer is as untrusted as a form field, because anyone whose text reached its prompt can steer it. The API asks for JSON, validates the answer against a Pydantic schema with `extra="forbid"` and length limits, refuses what does not fit with a message that does not repeat it, and the page shows the fields as text.
+
 ### Checks
 
 ESLint at commit time, Semgrep at push time and in CI, SonarQube, the ZAP scans. The regression test renders a comment holding an `<img onerror>` payload and expects inert text (Vitest, WP4.5).

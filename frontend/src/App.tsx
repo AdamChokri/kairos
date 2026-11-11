@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 
-import { clearToken, getToken } from "./api";
+import { SESSION_ENDED, clearToken, getToken } from "./api";
 import { Login } from "./Login";
-import { TaskList } from "./TaskList";
-import { TaskPage } from "./TaskPage";
+import { Workspace } from "./Workspace";
 
 function currentTaskId(): number | null {
   const match = /^#\/tasks\/(\d+)$/.exec(window.location.hash);
@@ -13,30 +12,47 @@ function currentTaskId(): number | null {
 export function App() {
   const [loggedIn, setLoggedIn] = useState(getToken() !== null);
   const [taskId, setTaskId] = useState(currentTaskId());
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     const onHashChange = () => setTaskId(currentTaskId());
+    // The API refused the token (it expired or was revoked): back to the log-in form, with the reason.
+    const onSessionEnded = () => {
+      setNotice("Your session has ended. Log in again.");
+      setLoggedIn(false);
+    };
     window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    window.addEventListener(SESSION_ENDED, onSessionEnded);
+    return () => {
+      window.removeEventListener("hashchange", onHashChange);
+      window.removeEventListener(SESSION_ENDED, onSessionEnded);
+    };
   }, []);
 
-  if (!loggedIn) return <Login onLogin={() => setLoggedIn(true)} />;
+  if (!loggedIn) {
+    return (
+      <Login
+        notice={notice}
+        onLogin={() => {
+          setNotice("");
+          setTaskId(currentTaskId());
+          setLoggedIn(true);
+        }}
+      />
+    );
+  }
 
   return (
-    <main>
-      <header>
-        <strong>Kairos</strong>{" "}
-        <button
-          type="button"
-          onClick={() => {
-            clearToken();
-            setLoggedIn(false);
-          }}
-        >
-          Log out
-        </button>
-      </header>
-      {taskId === null ? <TaskList /> : <TaskPage id={taskId} />}
-    </main>
+    <Workspace
+      taskId={taskId}
+      onLogout={() => {
+        clearToken();
+        // The next person to log in on this browser must not land on this person's task.
+        window.history.replaceState(null, "", window.location.pathname);
+        setTaskId(null);
+        setNotice("");
+        setLoggedIn(false);
+      }}
+    />
   );
 }

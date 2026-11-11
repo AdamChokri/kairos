@@ -17,13 +17,15 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.assist import RateLimiter
 from app.db import Base, engine
-from app.routers import auth, comments, importer, ops, tasks
+from app.routers import assist, auth, comments, importer, ops, tasks
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(engine)  # the schema is created at start-up (plan section 3.2)
+    app.state.assist_limiter = RateLimiter()  # one budget per user, in this process (SV-14)
     yield
 
 
@@ -61,3 +63,4 @@ app.include_router(auth.router)
 app.include_router(importer.router)
 app.include_router(tasks.router)
 app.include_router(comments.router)
+app.include_router(assist.router)

@@ -1,13 +1,14 @@
 """Tasks: list and search, create, read, update, delete (plan section 3.2).
 
-Seeded weaknesses (security/seeded-vulns.md):
-  SV-02  the search text is pasted into the SQL string (injection).
+Seeded weakness still present (security/seeded-vulns.md):
   SV-06  a task is fetched by its id alone: any logged-in user can read, change or delete
          anyone's task (insecure direct object reference). Comments share the same flaw.
+SV-02 (the search text pasted into the SQL string) was fixed in WP4.5: the search is a bound
+parameter, and `%` and `_` in it are literal.
 """
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, select
 
 from app.db import DbSession
 from app.deps import CurrentUser
@@ -26,15 +27,11 @@ def get_task(task_id: int, db: DbSession) -> Task:
 
 @router.get("", response_model=list[TaskOut])
 def list_tasks(user: CurrentUser, db: DbSession, search: str | None = None) -> list[TaskOut]:
+    query = select(Task).where(Task.owner_id == user.id).order_by(Task.id)
     if search:
-        # SV-02: the search text is part of the SQL string.
-        query = text(
-            "SELECT id, title, description, done, owner_id FROM tasks "
-            f"WHERE owner_id = {user.id} AND lower(title) LIKE lower('%{search}%') ORDER BY id"
-        )
-        return [TaskOut(**row._mapping) for row in db.execute(query)]
-    tasks = db.scalars(select(Task).where(Task.owner_id == user.id).order_by(Task.id))
-    return [TaskOut.model_validate(task) for task in tasks]
+        # A bound parameter; autoescape makes `%` and `_` in the search match themselves.
+        query = query.where(Task.title.icontains(search, autoescape=True))
+    return [TaskOut.model_validate(task) for task in db.scalars(query)]
 
 
 @router.post("", response_model=TaskOut, status_code=status.HTTP_201_CREATED)

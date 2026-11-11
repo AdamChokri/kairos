@@ -54,6 +54,7 @@ One row per weakness, added by the pull request that fixes it (WP4.5 onwards): t
 | ID | Fixed by | Regression test | Proof |
 |---|---|---|---|
 | SV-01 | `fix(sec): SV-01 hard-coded secrets with its regression test` | `backend/tests/test_config.py` | `bash security/check-seeded.sh` → `MISSING SV-01`; `git ls-files deploy/.env` prints nothing; `make dev-up` makes the secrets the stack reads |
+| SV-02 | `fix(sec): SV-02 SQL injection in the task search, with its regression test` | `backend/tests/test_tasks.py` (four tests) | `bash security/check-seeded.sh` → `MISSING SV-02`; the Semgrep rule `sql-fstring-in-text` no longer fires on `tasks.py` |
 
 ## Not seeded
 

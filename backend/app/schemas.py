@@ -65,3 +65,12 @@ class ImportDocument(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     tasks: list[ImportedTask] = Field(max_length=200)
+
+
+class AssistSuggestion(BaseModel):
+    """What Kairos Assist may answer: a task, nothing else (SV-12). The model text is untrusted."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=1000)

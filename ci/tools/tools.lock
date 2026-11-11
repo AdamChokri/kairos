@@ -1,0 +1,18 @@
+# ci/tools/tools.lock - every scanner and build image the pipeline runs, by digest (plan WP4.2, D-08, D-12).
+# Columns, separated by spaces: name  image:tag  digest  pushed  verified-by
+#   pushed   the date the registry says the tag was last pushed; the tag must be at least 7 days old when pinned (D-12)
+#   digest   the multi-platform index digest, as `ci/tools/resolve-digest.sh` prints it; a digest of zeros is a
+#            placeholder that ci/scripts/lib.sh refuses
+# The Node image is not repeated here: ci/tools/node-image.txt stays its only pin (D-30).
+# Versions that also appear elsewhere (Trivy, Gitleaks, Hadolint, Semgrep, Bandit, Ruff) are compared with
+# those places by ci/tools/check-tools-lock.sh, so the hooks, `make` and the pipeline run the same tools.
+# Refresh with ci/tools/pin-tools.sh in its own pull request; ci/tools/denylist.txt lists what must never be pinned.
+python         python:3.13.18-slim-trixie                    sha256:76baad6037690d6e8c4397fbcaef17bca6f19eecef822b708fe8fa3417d30bb5  2026-10-28  -
+trivy          aquasec/trivy:0.76.1                         sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c  2026-10-21  cosign
+gitleaks       zricethezav/gitleaks:v8.30.1                 sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f  2026-03-21  -
+semgrep        semgrep/semgrep:1.182.1                      sha256:451b3d875c00dac7ed5db5293e584a07de11449a409c10b3c2d2652f429630b6  2026-10-22  -
+hadolint       hadolint/hadolint:v2.15.1                    sha256:32dac94127fd60b7b7e3fbfc65e1383b9b5e25c9bfd7b8536de7a539fe68a12d  2026-07-31  -
+syft           anchore/syft:v1.55.0                         sha256:4cc92b64ca74ffca4c94d4c8fcc01f217731375300be14d0b6eeb2e82eaa110a  2026-10-19  -
+zap            zaproxy/zap-stable:2.17.0                    sha256:030d3df57735dacbb83464854758e674dd9ad01d79d12a129a8e58b1fd384238  2026-10-26  -
+sonar-scanner  sonarsource/sonar-scanner-cli:12.3.0.4285_8.1.0  sha256:47956b669bf486bdad919e1cbd0533223515aa0b6d1d31763e5a3754942df6d7  -  -
+nginx          nginxinc/nginx-unprivileged:1.30.6-alpine3.24  sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03  2026-10-19  -

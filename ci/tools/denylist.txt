@@ -1,0 +1,9 @@
+# ci/tools/denylist.txt - releases and images that must never be pinned or run (plan WP4.2, D-12).
+# Columns: kind  name  version-or-*  reason. ci/tools/check-tools-lock.sh fails when tools.lock or the
+# install scripts name one of them. Add a line through a pull request when a tool is found compromised.
+# kind "tool": matched against the version of a tools.lock row whose image repository ends in the name.
+# kind "image": the whole repository is refused, whatever the tag.
+tool   trivy                0.69.4   Malicious v0.69.4 binary and images (March 2026, CVE-2026-33634, in CISA KEV)
+tool   trivy                0.69.5   Images 0.69.4 to 0.69.6 were malicious (March 2026)
+tool   trivy                0.69.6   Images 0.69.4 to 0.69.6 were malicious (March 2026)
+image  checkmarx/kics       *        KICS Docker Hub tags were overwritten in April 2026 (plan section 6)

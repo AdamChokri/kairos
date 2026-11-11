@@ -1,0 +1,58 @@
+name: Security exception request
+description: Ask to waive one blocking security finding for a limited time (plan section 4.3)
+title: "[exception] <tool>: <finding>"
+labels: ["security-exception"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        An exception is never for a live secret (rotate it) or for a Critical or KEV-listed vulnerability that has a fixed version (upgrade).
+        The Security Champion reproduces the finding and classifies it. A true positive goes back for a fix, not an exception.
+        If it is approved, one pull request adds the entry to `security/exceptions.yaml` and the tool's suppression marker with the `EXC-NNNN` id.
+  - type: input
+    id: tool
+    attributes:
+      label: Tool
+      description: gitleaks, semgrep, bandit, eslint, hadolint, trivy-fs, trivy-image, trivy-config, zap or sonarqube
+    validations:
+      required: true
+  - type: input
+    id: finding
+    attributes:
+      label: Finding
+      description: The rule id, CVE or check id, and where it was found (file and line, image and package)
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Sets the maximum duration (Critical 7 days, High 30, Medium 90, Low 180)
+      options: [critical, high, medium, low]
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: The report lines or the build link that show the finding. Never paste a secret.
+    validations:
+      required: true
+  - type: textarea
+    id: reasoning
+    attributes:
+      label: Why it is a false positive, not exploitable here, or accepted for now
+    validations:
+      required: true
+  - type: textarea
+    id: controls
+    attributes:
+      label: Compensating controls
+      description: What limits the risk meanwhile (a read-only filesystem, a non-root user, a network rule). Required for an accepted risk.
+  - type: input
+    id: expiry
+    attributes:
+      label: Proposed expiry (YYYY-MM-DD)
+      description: Not later than the maximum for the severity, counted from today
+    validations:
+      required: true

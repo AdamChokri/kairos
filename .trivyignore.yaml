@@ -1,0 +1,8 @@
+# .trivyignore.yaml - Trivy's suppression file (plan section 4.3, WP4.4). Trivy applies it itself and enforces each
+# entry's expiry. Every entry names its register entry in `statement` (EXC-NNNN, see security/exceptions.yaml), and
+# ci/scripts/check_exceptions.py fails the build when an entry and the register disagree. Example of one entry:
+#   vulnerabilities:
+#     - id: CVE-XXXX-YYYY
+#       statement: "EXC-0001 - see security/exceptions.yaml"
+#       expired_at: 2026-12-20
+vulnerabilities: []

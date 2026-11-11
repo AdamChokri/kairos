@@ -1,0 +1,23 @@
+# security/exceptions.yaml - the exception register (plan section 4.3, WP4.4). Validated by
+# ci/scripts/check_exceptions.py in `preflight`: schema, approver role, maximum duration, expiry, and the
+# agreement of every suppression marker with an entry here. Changed only by a pull request that carries the entry
+# AND its marker. A live secret and a Critical or KEV-listed vulnerability that has a fix are never excepted.
+#
+# One entry looks like this (the real values are filled in when a case occurs):
+#   - id: EXC-0001
+#     status: approved                 # proposed | approved | expired | revoked
+#     tool: trivy-image                # gitleaks | semgrep | bandit | eslint | hadolint | trivy-fs | trivy-image | trivy-config | zap | sonarqube
+#     finding: CVE-XXXX-YYYY
+#     scope: "kairos-api image, package <name>@<version>"
+#     classification: accepted_risk    # false_positive | not_affected | accepted_risk
+#     severity: high                   # critical (7 days at most) | high (30) | medium (90) | low (180)
+#     justification: >
+#       Why it is accepted, in a few sentences.
+#     compensating_controls: ["read-only container filesystem", "non-root user"]
+#     requested_by: developer
+#     approved_by: "security-champion (Adam Chokri)"    # a Critical entry also names release-manager
+#     created: 2026-11-20
+#     expires: 2026-12-20
+#     issue: "https://github.com/AdamChokri/kairos/issues/<n>"
+#     pull_request: "https://github.com/AdamChokri/kairos/pull/<n>"
+exceptions: []

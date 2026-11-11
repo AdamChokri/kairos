@@ -10,3 +10,5 @@ One line per working session (plan section 0.4): it drives the checkpoints of se
 | 2026-11-06 | WP2.1, WP2.2, WP2.3 | ≈ 3 (estimate) | D-25, D-26, D-28, D-30; E-30 to E-33, E-39 to E-41; as-is job green on staging and production; W-01 to W-14 checked against the lab; NODE-01, DEP-01, UPD-05 opened |
 | 2026-11-06 | P3 start (3.0), WP3.1 (begun) | ≈ 3 (estimate) | P3 started after the P2 merge; IDE profile: six extensions installed in WSL mode by exact id, versions checked against the 7-day rule |
 | 2026-11-07 | WP3.1 (complete), WP3.2, WP3.3 | ≈ 3 (estimate) | D-27, D-29, D-31; E-34 to E-38; hooks installed and proven by the two refusals (EV-04, EV-05); five educational rules tested; IDE-01 to IDE-03 opened |
+| 2026-11-11 | WP4.1 | ≈ 3 (estimate) | Jenkins accounts and matrix, Audit Trail, Resource Root URL, three AppRole credentials, Slack, job `kairos`; Docker Hub token `kairos-ci-rw` (as-is token revoked); two deploy key pairs in OpenBao |
+| 2026-11-11 | WP4.2 to WP4.4 | ≈ 3 (estimate) | The CI pull request; E-42 to E-44, E-53, D-32, D-36; SonarQube new code set; DHT-01 if the token is account-wide |

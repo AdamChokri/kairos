@@ -5,9 +5,10 @@
 # host keys of staging and production.
 # The agents must exist on the controller first (WP1.4) and their secrets be in OpenBao.
 - name: Java 21, git and the agent's tools are installed
+  # python3-yaml: ci/scripts/check_exceptions.py (WP4.4) reads the exception register on the build agent.
   ansible.builtin.apt:
     name: "{{ ['openjdk-21-jre-headless', 'curl', 'jq', 'git']
-              + ([] if jenkins_agent.docker else ['openssh-client', 'bsdextrautils', 'bind9-dnsutils']) }}"
+              + (['python3-yaml'] if jenkins_agent.docker else ['openssh-client', 'bsdextrautils', 'bind9-dnsutils']) }}"
     state: present
     update_cache: true
     cache_valid_time: 3600

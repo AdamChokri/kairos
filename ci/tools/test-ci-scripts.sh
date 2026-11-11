@@ -28,7 +28,7 @@ expect_exit() {
 fake="$work/repo"
 mkdir -p "$fake/ci/scripts" "$fake/ci/tools" "$fake/security/policy" "$fake/backend" "$fake/frontend" "$fake/reports"
 cp "$ROOT"/ci/scripts/* "$fake/ci/scripts/"
-cp "$ROOT"/ci/tools/{tools.lock,denylist.txt,check-tools-lock.sh,node-image.txt,uv-requirements.txt,install-scan-tools.sh,hook-trivy.sh,commit-scan.sh} "$fake/ci/tools/"
+cp "$ROOT"/ci/tools/{tools.lock,denylist.txt,check-tools-lock.sh,node-image.txt,uv-requirements.txt,install-scan-tools.sh,hook-trivy.sh,commit-scan.sh,hooks-install.sh} "$fake/ci/tools/"
 cp "$ROOT/security/policy/gates.env" "$fake/security/policy/"
 cp "$ROOT/.gitleaks.toml" "$ROOT/.pre-commit-config.yaml" "$fake/"
 cp "$ROOT/backend/pyproject.toml" "$ROOT/backend/Dockerfile" "$fake/backend/"
@@ -151,6 +151,13 @@ cp "$work/compose.good" deploy/compose.yaml
 sed -i -E 's#uv==[0-9.]+#uv==0.13.5#' backend/Dockerfile
 expect_exit 1 "a Dockerfile that installs another uv than uv-requirements.txt is refused" bash ci/tools/check-tools-lock.sh
 cp "$work/Dockerfile.good" backend/Dockerfile
+cp ci/tools/hooks-install.sh "$work/hooks-install.good"
+sed -i -E 's#^UV_VERSION="[^"]+"#UV_VERSION="0.13.5"#' ci/tools/hooks-install.sh
+expect_exit 1 "hooks-install.sh with another uv than uv-requirements.txt is refused (HOOK-01)" bash ci/tools/check-tools-lock.sh
+cp "$work/hooks-install.good" ci/tools/hooks-install.sh
+sed -i -E 's#^PRE_COMMIT_VERSION="[^"]+"#PRE_COMMIT_VERSION="4.6.0"#' ci/tools/hooks-install.sh
+expect_exit 1 "hooks-install.sh with another pre-commit than .pre-commit-config.yaml is refused (HOOK-01)" bash ci/tools/check-tools-lock.sh
+cp "$work/hooks-install.good" ci/tools/hooks-install.sh
 echo 'image  checkmarx/kics  *  test' >> ci/tools/denylist.txt
 echo 'kics  checkmarx/kics:2.1.0  sha256:1111111111111111111111111111111111111111111111111111111111111111  2026-01-01  -' >> ci/tools/tools.lock
 expect_exit 1 "a refused image (KICS) is refused" bash ci/tools/check-tools-lock.sh

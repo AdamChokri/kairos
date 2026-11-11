@@ -49,10 +49,11 @@ commit-scan-test:
 measure:
 	@bash ci/as-is/measure.sh
 
-# P3: the developer workstation (WP3.2, WP3.3). Needs pre-commit and semgrep from `uv tool install`.
+# P3: the developer workstation (WP3.2, WP3.3). hooks-install (WP4.6) installs pre-commit with uv and builds the hook
+# environments under the 7-day rule (HOOK-01, D-34); semgrep comes from `uv tool install`.
 # Until WP4.5 fixes the seeded weaknesses, hooks-commit reports bandit and eslint on them, on purpose.
 hooks-install:
-	pre-commit install --hook-type pre-commit --hook-type pre-push
+	@bash ci/tools/hooks-install.sh
 
 hooks-commit:
 	pre-commit run --all-files

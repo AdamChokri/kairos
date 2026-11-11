@@ -4,7 +4,8 @@
 #   2. nothing in it, and no install script, names a release of ci/tools/denylist.txt;
 #   3. the tool versions agree everywhere they are pinned: the lock, the install scripts and hooks of P3,
 #      .pre-commit-config.yaml and backend/pyproject.toml. One version of each tool, wherever it runs;
-#   4. the images the application is built and run on (both Dockerfiles, the Compose file) are the lock's pins.
+#   4. the images the application is built and run on (both Dockerfiles, the Compose file) are the lock's pins;
+#   5. the hooks are installed with the uv of uv-requirements.txt and the pre-commit that .pre-commit-config.yaml asks for.
 # `--allow-placeholder` accepts digests of zeros (right after a tag changed, before pin-tools.sh ran).
 # Run by preflight and by `make hooks-selftest`. Needs bash, awk, grep and sed. Exit code 1 on any problem.
 set -Eeuo pipefail
@@ -97,6 +98,9 @@ agree_image deploy/compose.yaml postgres "$(pin_of postgres)"
 # uv installs the production dependencies inside the image: one version, the one whose hashes
 # ci/tools/uv-requirements.txt pins for the agents.
 same "uv: backend/Dockerfile and ci/tools/uv-requirements.txt" "$(first_match "$ROOT/backend/Dockerfile" '^RUN pip install .*uv==([0-9][0-9.]*).*')" "$(first_match "$ROOT/ci/tools/uv-requirements.txt" '^uv==([0-9][0-9.]*).*')"
+# The hooks are installed with the same uv, and with the pre-commit that .pre-commit-config.yaml requires (HOOK-01, D-34).
+same "uv: ci/tools/hooks-install.sh and ci/tools/uv-requirements.txt" "$(first_match "$ROOT/ci/tools/hooks-install.sh" '^UV_VERSION="([^"]+)".*')" "$(first_match "$ROOT/ci/tools/uv-requirements.txt" '^uv==([0-9][0-9.]*).*')"
+same "pre-commit: ci/tools/hooks-install.sh and .pre-commit-config.yaml" "$(first_match "$ROOT/ci/tools/hooks-install.sh" '^PRE_COMMIT_VERSION="([^"]+)".*')" "$(first_match "$ROOT/.pre-commit-config.yaml" '^minimum_pre_commit_version: "([^"]+)".*')"
 
 # The scan-tool installers must not install a denylisted release either.
 while read -r kind dname dversion _; do

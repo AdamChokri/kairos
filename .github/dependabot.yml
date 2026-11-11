@@ -1,0 +1,53 @@
+# .github/dependabot.yml - dependency automation (plan WP4.6, decision D-12).
+# Version updates wait 7 days after a release (cooldown); security updates ignore the cooldown, as GitHub documents.
+# Minor and patch updates of one ecosystem arrive as one pull request; a major update is its own. Every pull request
+# runs the pull-request lane of the pipeline (the repository's own branches are built), so a red check blocks it.
+# The Node base image of the frontend build and the tool images are pinned by digest elsewhere (ci/tools/node-image.txt,
+# ci/tools/tools.lock) and moved by hand through ci/tools/pin-tools.sh, because their date and signature are checked.
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Africa/Tunis"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      python-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Africa/Tunis"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # the test runner and its coverage provider are released together and must keep the same version
+      # (frontend/package.json: @vitest/coverage-v8 is pinned to vitest's version): one pull request, even for a major
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
+      npm-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "docker"
+    directories: ["/backend", "/frontend"]
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Africa/Tunis"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"

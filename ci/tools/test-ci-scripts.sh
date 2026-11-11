@@ -3,7 +3,8 @@
 #   - the exit-code protocol of ci/scripts/lib.sh (0 pass, 1 blocked, 2 would block, 3 failure);
 #   - run-tool.sh builds exactly the sandboxed `docker run` of the plan, with a stub `docker` that records its arguments;
 #   - the secrets scan turns Gitleaks' exit codes into verdicts, and a crash into exit 3;
-#   - ci/tools/check-tools-lock.sh refuses a denylisted release, a placeholder, a version that disagrees with another pin;
+#   - ci/tools/check-tools-lock.sh refuses a denylisted release, a placeholder, a version that disagrees with another pin
+#     (the images of the Dockerfiles and the Compose file, the uv of the backend image);
 #   - kev_check.py, sarif_gate.py and bandit_to_sarif.py decide as section 4.2 says, on small fixtures;
 #   - check_exceptions.py accepts a valid register and refuses an expired, too long or unmarked one.
 #   bash ci/tools/test-ci-scripts.sh        (also run by `make hooks-selftest`). Needs bash, python3; PyYAML for the last part.
@@ -27,10 +28,13 @@ expect_exit() {
 fake="$work/repo"
 mkdir -p "$fake/ci/scripts" "$fake/ci/tools" "$fake/security/policy" "$fake/backend" "$fake/frontend" "$fake/reports"
 cp "$ROOT"/ci/scripts/* "$fake/ci/scripts/"
-cp "$ROOT"/ci/tools/{tools.lock,denylist.txt,check-tools-lock.sh,node-image.txt,install-scan-tools.sh,hook-trivy.sh,commit-scan.sh} "$fake/ci/tools/"
+cp "$ROOT"/ci/tools/{tools.lock,denylist.txt,check-tools-lock.sh,node-image.txt,uv-requirements.txt,install-scan-tools.sh,hook-trivy.sh,commit-scan.sh} "$fake/ci/tools/"
 cp "$ROOT/security/policy/gates.env" "$fake/security/policy/"
 cp "$ROOT/.gitleaks.toml" "$ROOT/.pre-commit-config.yaml" "$fake/"
-cp "$ROOT/backend/pyproject.toml" "$fake/backend/"
+cp "$ROOT/backend/pyproject.toml" "$ROOT/backend/Dockerfile" "$fake/backend/"
+mkdir -p "$fake/deploy"
+cp "$ROOT/frontend/Dockerfile" "$fake/frontend/"
+cp "$ROOT/deploy/compose.yaml" "$fake/deploy/"
 
 echo "1. The exit-code protocol (ci/scripts/lib.sh)"
 cat > "$fake/protocol.sh" <<'SH'
@@ -136,6 +140,17 @@ cp "$work/lock.good" ci/tools/tools.lock
 sed -i 's#python:3.13.18-slim-trixie#python:latest#' ci/tools/tools.lock
 expect_exit 1 "the tag latest is refused" bash ci/tools/check-tools-lock.sh
 cp "$work/lock.good" ci/tools/tools.lock
+cp backend/Dockerfile "$work/Dockerfile.good"
+sed -i -E '0,/^FROM python:[^ ]+/s##FROM python:3.13.17-slim-trixie@sha256:0000000000000000000000000000000000000000000000000000000000000000#' backend/Dockerfile
+expect_exit 1 "a Dockerfile on another python image than the lock's is refused" bash ci/tools/check-tools-lock.sh
+cp "$work/Dockerfile.good" backend/Dockerfile
+cp deploy/compose.yaml "$work/compose.good"
+sed -i -E 's#image: postgres:[^ ]+#image: postgres:17#' deploy/compose.yaml
+expect_exit 1 "a Compose file on a postgres tag that is not the lock's is refused" bash ci/tools/check-tools-lock.sh
+cp "$work/compose.good" deploy/compose.yaml
+sed -i -E 's#uv==[0-9.]+#uv==0.13.5#' backend/Dockerfile
+expect_exit 1 "a Dockerfile that installs another uv than uv-requirements.txt is refused" bash ci/tools/check-tools-lock.sh
+cp "$work/Dockerfile.good" backend/Dockerfile
 echo 'image  checkmarx/kics  *  test' >> ci/tools/denylist.txt
 echo 'kics  checkmarx/kics:2.1.0  sha256:1111111111111111111111111111111111111111111111111111111111111111  2026-01-01  -' >> ci/tools/tools.lock
 expect_exit 1 "a refused image (KICS) is refused" bash ci/tools/check-tools-lock.sh
@@ -259,6 +274,101 @@ YAML
   expect_exit 0 "the repository's own register and suppression files agree" python3 -I "$ROOT/ci/scripts/check_exceptions.py"
 else
   echo "  SKIP  check_exceptions.py: PyYAML is not installed (Ubuntu: sudo apt install python3-yaml)"
+fi
+
+echo "7. check-container-hardening.py (SV-09)"
+if python3 -c 'import yaml' 2>/dev/null; then
+  ch="$work/containers"
+  mkdir -p "$ch/deploy" "$ch/backend" "$ch/frontend"
+  cat > "$ch/deploy/compose.yaml" <<'YAML'
+name: t
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 256
+services:
+  db:
+    <<: *hardening
+    image: postgres:17.10-trixie@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    mem_limit: 512m
+  api:
+    <<: *hardening
+    image: ${KAIROS_API_IMAGE:-local/kairos-api:dev}
+    mem_limit: 512m
+  web:
+    <<: *hardening
+    image: ${KAIROS_WEB_IMAGE:-local/kairos-web:dev}
+    mem_limit: 128m
+    ports:
+      - "${KAIROS_WEB_BIND:-127.0.0.1}:8080:8080"
+YAML
+  printf 'services:\n  web:\n    ports:\n      - "127.0.0.1:8080:8080"\n' > "$ch/deploy/compose.dev.yaml"
+  for f in backend frontend; do
+    cat > "$ch/$f/Dockerfile" <<'DOCKER'
+FROM python:3.13.18-slim-trixie@sha256:0000000000000000000000000000000000000000000000000000000000000000 AS build
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+FROM python:3.13.18-slim-trixie@sha256:0000000000000000000000000000000000000000000000000000000000000000
+ENV JWT_SECRET_KEY_FILE=/run/secrets/jwt_secret_key
+USER 10001:10001
+CMD ["true"]
+DOCKER
+  done
+  hard() { python3 -I "$ROOT/ci/tools/check-container-hardening.py" "$ch"; }
+  keep() { cp "$ch/deploy/compose.yaml" "$work/c.keep"; cp "$ch/deploy/compose.dev.yaml" "$work/d.keep"; cp "$ch/backend/Dockerfile" "$work/b.keep"; }
+  restore() { cp "$work/c.keep" "$ch/deploy/compose.yaml"; cp "$work/d.keep" "$ch/deploy/compose.dev.yaml"; cp "$work/b.keep" "$ch/backend/Dockerfile"; }
+  keep
+  expect_exit 0 "hardened compose files and Dockerfiles pass" hard
+  sed -i '/^  read_only: true/d' "$ch/deploy/compose.yaml"
+  expect_exit 1 "a service without read_only is refused" hard
+  grep -q 'read_only' "$work/out.txt" || bad "the failure must name read_only"
+  restore
+  sed -i 's/cap_drop: \[ALL\]/cap_drop: [NET_RAW]/' "$ch/deploy/compose.yaml"
+  expect_exit 1 "cap_drop without ALL is refused" hard
+  restore
+  sed -i 's/cap_add: \[CHOWN, /cap_add: [SYS_ADMIN, CHOWN, /' "$ch/deploy/compose.yaml"
+  expect_exit 1 "a capability the database does not need is refused" hard
+  restore
+  sed -i '/no-new-privileges/d' "$ch/deploy/compose.yaml"
+  expect_exit 1 "a missing no-new-privileges is refused" hard
+  restore
+  sed -i '/pids_limit/d' "$ch/deploy/compose.yaml"
+  expect_exit 1 "a missing PID limit is refused" hard
+  restore
+  sed -i '/mem_limit: 128m/d' "$ch/deploy/compose.yaml"
+  expect_exit 1 "a missing memory limit is refused" hard
+  restore
+  sed -i 's#"[^"]*:8080:8080"#"8080:8080"#' "$ch/deploy/compose.yaml"
+  expect_exit 1 "a published port without a host address is refused" hard
+  restore
+  sed -i 's#"[^"]*:8080:8080"#"0.0.0.0:8080:8080"#' "$ch/deploy/compose.yaml"
+  expect_exit 1 "a published port on 0.0.0.0 is refused" hard
+  restore
+  sed -i 's#"[^"]*:8080:8080"#"[::]:8080:8080"#' "$ch/deploy/compose.yaml"
+  expect_exit 1 "a published port on [::] is refused" hard
+  restore
+  sed -i 's#"127.0.0.1:8080:8080"#"0.0.0.0:8080:8080"#' "$ch/deploy/compose.dev.yaml"
+  expect_exit 1 "a development port that is not on 127.0.0.1 is refused" hard
+  restore
+  sed -i 's#^    image: postgres#    privileged: true\n    image: postgres#' "$ch/deploy/compose.yaml"
+  expect_exit 1 "a privileged container is refused" hard
+  restore
+  sed -i '0,/^FROM python:3.13.18-slim-trixie@sha256:[0-9a-f]*$/s##FROM python:latest#' "$ch/backend/Dockerfile"
+  expect_exit 1 "FROM python:latest is refused" hard
+  restore
+  sed -i 's#^USER 10001:10001#USER root#' "$ch/backend/Dockerfile"
+  expect_exit 1 "a final stage that runs as root is refused" hard
+  restore
+  sed -i '/^USER/d' "$ch/backend/Dockerfile"
+  expect_exit 1 "a final stage without USER is refused" hard
+  restore
+  sed -i 's#^ENV JWT_SECRET_KEY_FILE=.*#ENV ADMIN_API_KEY=kairos-admin-key#' "$ch/backend/Dockerfile"
+  expect_exit 1 "a secret in ENV is refused" hard
+  restore
+  expect_exit 0 "the repository's own containers are hardened (SV-09)" python3 -I "$ROOT/ci/tools/check-container-hardening.py" "$ROOT"
+else
+  echo "  SKIP  check-container-hardening.py: PyYAML is not installed (Ubuntu: sudo apt install python3-yaml)"
 fi
 
 printf 'test-ci-scripts: %s checks passed\n' "$passed"

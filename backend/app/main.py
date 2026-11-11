@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.db import Base, engine
-from app.routers import auth, comments, importer, ops, tasks
+from app.routers import assist, auth, comments, importer, ops, tasks
 
 
 @asynccontextmanager
@@ -61,3 +61,4 @@ app.include_router(auth.router)
 app.include_router(importer.router)
 app.include_router(tasks.router)
 app.include_router(comments.router)
+app.include_router(assist.router)

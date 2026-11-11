@@ -2,6 +2,7 @@ import debounce from "lodash/debounce";
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { type Task, request } from "./api";
+import { AssistPanel } from "./AssistPanel";
 
 export function TaskList() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -59,6 +60,7 @@ export function TaskList() {
         <button type="submit">Add</button>
       </form>
       {error && <p role="alert">{error}</p>}
+      <AssistPanel />
       <ul>
         {tasks.map((task) => (
           <li key={task.id}>

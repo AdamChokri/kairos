@@ -66,3 +66,10 @@ ACCESS_TOKEN_MINUTES = 60
 
 DATABASE_URL = build_database_url()
 GIT_SHA = os.getenv("GIT_SHA", "dev")
+
+
+# Kairos Assist (D-20, WP4.7). Off by default: a release never switches it on by accident.
+ASSIST_ENABLED = os.environ.get("ASSIST_ENABLED", "false").lower() in ("1", "true", "yes")
+ASSIST_PROVIDER = os.environ.get("ASSIST_PROVIDER", "deepseek")  # "stub" answers without a key
+ASSIST_MODEL = os.environ.get("ASSIST_MODEL", "deepseek-flash")
+ASSIST_BASE_URL = os.environ.get("ASSIST_BASE_URL", "https://api.deepseek.com")

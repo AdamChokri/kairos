@@ -19,6 +19,11 @@ Kairos v0 contains these weaknesses **on purpose** (plan section 5): the project
 | SV-09 | `backend/Dockerfile` and `frontend/Dockerfile`: `python:latest` and `node:latest`, root user, `ENV ADMIN_API_KEY` (a fake secret), the Vite dev server as the web tier; `deploy/compose.yaml` publishes 8000 and 5173 on every interface with Docker's default runtime settings | Hadolint, Trivy config, Trivy image; the Compose half by review | WP4.5 |
 | SV-10 | `ci/as-is/Jenkinsfile`: Docker Hub token through Groovy interpolation, password SSH with `sshpass`, host keys unchecked, mutable `:latest` tags, no scan, no pull-request build | Jenkins' interpolation warning; review against the OWASP CI/CD Top 10 | P4 to P6 |
 | SV-11 | The as-is hosts (`infra/ansible/roles/as-is`): the `deploy` account with a password, `PasswordAuthentication yes`, no firewall, default sysctls, no auditd | Lynis, Wazuh SCA (CIS Ubuntu 24.04) | WP7.1 |
+| SV-12 | `frontend/src/AssistPanel.tsx` inserts the assistant's suggestion with `dangerouslySetInnerHTML` (the model's output treated as trusted HTML) | ESLint `react/no-danger`, the SV-03 Semgrep rule | WP4.7 |
+| SV-13 | `backend/app/assist.py` builds the prompt context from `select(Task)`, every user's tasks, so an instruction hidden in one task can make the model reveal another user's data | Semgrep `kairos.llm-context-unscoped`, regression test | WP4.7 |
+| SV-14 | `backend/app/assist.py` calls the model with the provider's defaults: thinking on, up to 64K output tokens, no timeout, and no limit per user | Semgrep `kairos.llm-call-unbounded`, regression test | WP4.7 |
+
+SV-12 to SV-14 are the weaknesses of Kairos Assist (D-20): they exist only in the first version of its pull request, where the pipeline must turn red on them, and each is fixed there, test first.
 
 ## SV-07: the two vulnerable packages (OI-06)
 

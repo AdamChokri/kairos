@@ -9,7 +9,7 @@ dependencies = [
     "sqlalchemy==2.1.6",
     "psycopg[binary]==3.3.6",
     "pydantic==2.14.1",
-    "pyjwt==2.3.0",
+    "pyjwt==2.15.0",
     "pyyaml==6.0.3",
     "argon2-cffi==25.1.0",
 ]

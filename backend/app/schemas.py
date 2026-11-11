@@ -50,3 +50,18 @@ class CommentOut(BaseModel):
     author_id: int
     body: str
     created_at: datetime
+
+
+class ImportedTask(BaseModel):
+    """One task of an imported YAML document: only these fields, nothing else (SV-04)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=200)
+    description: str = ""
+
+
+class ImportDocument(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tasks: list[ImportedTask] = Field(max_length=200)

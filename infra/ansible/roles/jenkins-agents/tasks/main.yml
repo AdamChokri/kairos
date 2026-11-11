@@ -5,9 +5,10 @@
 # host keys of staging and production.
 # The agents must exist on the controller first (WP1.4) and their secrets be in OpenBao.
 - name: Java 21, git and the agent's tools are installed
+  # python3-yaml: ci/scripts/check_exceptions.py (WP4.4) reads the exception register on the build agent.
   ansible.builtin.apt:
     name: "{{ ['openjdk-21-jre-headless', 'curl', 'jq', 'git']
-              + ([] if jenkins_agent.docker else ['openssh-client', 'bsdextrautils', 'bind9-dnsutils']) }}"
+              + (['python3-yaml'] if jenkins_agent.docker else ['openssh-client', 'bsdextrautils', 'bind9-dnsutils']) }}"
     state: present
     update_cache: true
     cache_valid_time: 3600
@@ -58,6 +59,30 @@
   become: true
   become_user: "{{ jenkins_agent.user }}"
   no_log: true
+
+- name: The cache volumes of the pipeline's tools exist and belong to the build agent
+  # ci/scripts/run-tool.sh runs every tool container as this account, never as root, and Docker creates a named
+  # volume owned by root: Trivy could not create /cache/db and the first pull-request build failed on it.
+  # The volumes that sca.sh, iac.sh and image_scan.sh mount (the Trivy database and the KEV catalog) are
+  # therefore created here, and their data folder is given to the agent account.
+  when: jenkins_agent.docker
+  block:
+    - name: The named volumes exist
+      community.docker.docker_volume:
+        name: "{{ item }}"
+      loop: [kairos-trivy-cache, kairos-kev-cache]
+      register: agent_cache_volumes
+
+    - name: Their data folders belong to the agent account
+      ansible.builtin.file:
+        path: "{{ item.volume.Mountpoint }}"
+        state: directory
+        owner: "{{ jenkins_agent.user }}"
+        group: "{{ jenkins_agent.user }}"
+        mode: "0750"
+      loop: "{{ agent_cache_volumes.results }}"
+      loop_control:
+        label: "{{ item.item }}"
 
 - name: Deploy agent tools
   when: not jenkins_agent.docker

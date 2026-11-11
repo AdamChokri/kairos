@@ -13,9 +13,10 @@
 .vault-token
 *.secret
 
-# Generated output
+# Generated output (the pipeline's reports, saved images and the tools build_test installs in the workspace)
 reports/
 images/
+.ci/
 *.iso
 *.vhdx
 *.tar

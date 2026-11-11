@@ -4,8 +4,9 @@
 # plan section 4.2: Critical always blocks, High blocks when a fixed version exists, and for a
 # Dockerfile any High or Critical misconfiguration blocks.
 #
-# The weaknesses seeded on purpose (SV-07: two vulnerable packages; SV-09: two naive Dockerfiles) pass
-# through ONE exact list, security/seeded-trivy.tsv, for this hook only (CI reports them all): a row is
+# The weakness seeded on purpose and still present (SV-07: two vulnerable packages; the two naive Dockerfiles of
+# SV-09 are fixed) passes through ONE exact list, security/seeded-trivy.tsv, for this hook only (CI reports it
+# all): a row is
 # "file<TAB>package<TAB>installed version" or "file<TAB>check id<TAB>-". A different package, another
 # version or another check is blocked. WP4.5 removed the rows as it fixed the weaknesses and deleted the
 # file: with no file, nothing is accepted.

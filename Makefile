@@ -19,16 +19,19 @@ lab-status:
 as-is:
 	cd infra/ansible && ansible-playbook site.yml --tags as-is
 
-# The Compose stack on the Legion (SV-01, WP4.5): throwaway secret files first (never in Git), then the stack.
+# The Compose stack on the Legion (SV-01, SV-09, WP4.5): throwaway secret files first (never in Git), then the
+# stack built from the working tree, the web tier on http://127.0.0.1:8080 and the API on http://127.0.0.1:8000.
 # `make dev-down` also removes the database volume, because its password belongs to the files above.
+COMPOSE_DEV = docker compose -f deploy/compose.yaml -f deploy/compose.dev.yaml
+
 dev-secrets:
 	@bash ci/tools/dev-secrets.sh
 
 dev-up: dev-secrets
-	docker compose -f deploy/compose.yaml up --build -d --wait
+	GIT_SHA=$$(git rev-parse --short HEAD) $(COMPOSE_DEV) up --build -d --wait
 
 dev-down:
-	docker compose -f deploy/compose.yaml down -v
+	$(COMPOSE_DEV) down -v
 
 # The API must be running: make smoke, or make smoke BASE=http://staging.kairos.lab:8000
 BASE ?= http://localhost:8000

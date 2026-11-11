@@ -58,6 +58,7 @@ One row per weakness, added by the pull request that fixes it (WP4.5 onwards): t
 | SV-04 | `fix(sec): SV-04 unsafe YAML loading in the task import, with its regression test` | `backend/tests/test_import.py` (ten tests) | `bash security/check-seeded.sh` → `MISSING SV-04`; Bandit B506 and the Semgrep rule `unsafe-yaml-load` no longer fire on `importer.py` |
 | SV-05 | `fix(sec): SV-05 unsalted MD5 password hashes, with its regression test` | `backend/tests/test_security.py` (six tests) | a new account's `password_hash` starts with `$argon2id$` (`select username, password_hash from users`); Bandit reports nothing on the backend |
 | SV-03 | `fix(sec): SV-03 stored XSS in the comment list, with its regression test` | `frontend/src/CommentList.test.tsx` (three tests) | `npm run lint` has no `react/no-danger` error; a comment `<img src=x onerror=...>` is shown as text; the CSP half of the fix arrives with the nginx headers (SV-08, WP5.4) |
+| SV-09 | `fix(sec): SV-09 root containers on mutable images, with its regression test` | `ci/tools/check-container-hardening.py` and `ci/tools/check-tools-lock.sh` (fifteen refusals and a pass in section 7, the pin checks in section 4 of `ci/tools/test-ci-scripts.sh`) | `trivy config backend/Dockerfile` and `frontend/Dockerfile` report 0 misconfigurations (before: DS-0001, DS-0002, DS-0031); `docker compose -f deploy/compose.yaml -f deploy/compose.dev.yaml exec api id` prints `uid=10001`; `printenv ADMIN_API_KEY` prints nothing; `docker compose ps` lists only `127.0.0.1:8080` and `127.0.0.1:8000` |
 
 ## Not seeded
 

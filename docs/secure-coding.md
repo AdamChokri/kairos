@@ -259,6 +259,51 @@ The Semgrep rule above at push time and in CI. The fixture marks each vulnerable
 
 ---
 
+## Insecure containers
+
+**Check:** `ci/tools/check-container-hardening.py` (run by `preflight`), Hadolint, Trivy config · seeded as SV-09 in `backend/Dockerfile`, `frontend/Dockerfile` and `deploy/compose.yaml`
+
+### The flaw
+
+An image or a container is left at its defaults, and every default favours the attacker:
+
+```dockerfile
+FROM python:latest                 # a mutable tag: tomorrow's build is another image
+ENV ADMIN_API_KEY=...              # a secret in a layer: `docker history` and `docker inspect` print it
+# no USER: the process is root, and so is anyone who takes it over
+```
+
+```yaml
+ports: ["8000:8000"]               # on every interface of the host, not on the one that was meant
+# no read_only, no cap_drop, no memory or PID limit: the container can write anywhere and use everything
+```
+
+### Why it matters
+
+A flaw in the application becomes a flaw of the host. Code that runs as root in a container with every capability, a writable filesystem and no limit can install tools, fill the disk, exhaust the memory of the machine and, with one more mistake (a Docker socket, a privileged flag), leave the container. A secret in an `ENV` line travels in every copy of the image, including the one on the registry. A mutable tag means that nobody has scanned, signed or reviewed the image that actually runs.
+
+### How to fix
+
+- **Pin every base image** by tag and digest (`python:3.13.18-slim-trixie@sha256:...`), and keep the pins in `ci/tools/tools.lock` and `ci/tools/node-image.txt`: `ci/tools/check-tools-lock.sh` refuses a Dockerfile or a Compose file that names another one.
+- **Build in stages**: the first stage installs and compiles, the last one copies the result and runs. No compiler, no package manager cache and no development dependency reaches the image that runs.
+- **Run as a numeric non-root user** (`USER 10001:10001`; nginx-unprivileged is `101`), so a runtime can check that the user is not root.
+- **No secret in an image.** The image holds the path of a file (`JWT_SECRET_KEY_FILE`), and the file is mounted when the container starts (see [How Kairos reads its secrets](#how-kairos-reads-its-secrets)).
+- **At run time**, every service sets `read_only: true` (with `tmpfs` for `/tmp`), `cap_drop: [ALL]`, `security_opt: ["no-new-privileges:true"]`, `mem_limit` and `pids_limit`. The database adds back the five capabilities its entrypoint needs to give its data directory to the `postgres` user, and nothing else.
+- **Publish as little as possible**, on a named address: only the web tier has a port, bound to `KAIROS_WEB_BIND` (the default is `127.0.0.1`); the API and the database are reached on Docker's networks, and the database's network has no route out.
+
+### Checks
+
+`python3 -I ci/tools/check-container-hardening.py` reads the two Dockerfiles and the Compose files and prints each finding with its fix; `preflight` runs it before every build, and `bash ci/tools/test-ci-scripts.sh` proves it on fifteen faulty variants. Hadolint and Trivy config read the Dockerfiles in CI; nothing in the pipeline reads Compose, so this script is the Compose check.
+
+### References
+
+- OWASP Top 10:2025: A02 Security Misconfiguration
+- CWE-250 Execution with Unnecessary Privileges, CWE-526 Cleartext Storage of Sensitive Information in an Environment Variable, CWE-668 Exposure of Resource to Wrong Sphere
+- ASVS 5.0.0: chapter V13 Configuration
+- OWASP Docker Security Cheat Sheet (cheatsheetseries.owasp.org)
+
+---
+
 ## AI-assisted code
 
 Code written with an assistant passes the same gates as any other code, and the gates do not know who wrote it. Two habits matter more than usual:

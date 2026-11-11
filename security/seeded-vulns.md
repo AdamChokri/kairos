@@ -56,6 +56,7 @@ One row per weakness, added by the pull request that fixes it (WP4.5 onwards): t
 | SV-01 | `fix(sec): SV-01 hard-coded secrets with its regression test` | `backend/tests/test_config.py` | `bash security/check-seeded.sh` → `MISSING SV-01`; `git ls-files deploy/.env` prints nothing; `make dev-up` makes the secrets the stack reads |
 | SV-02 | `fix(sec): SV-02 SQL injection in the task search, with its regression test` | `backend/tests/test_tasks.py` (four tests) | `bash security/check-seeded.sh` → `MISSING SV-02`; the Semgrep rule `sql-fstring-in-text` no longer fires on `tasks.py` |
 | SV-04 | `fix(sec): SV-04 unsafe YAML loading in the task import, with its regression test` | `backend/tests/test_import.py` (ten tests) | `bash security/check-seeded.sh` → `MISSING SV-04`; Bandit B506 and the Semgrep rule `unsafe-yaml-load` no longer fire on `importer.py` |
+| SV-05 | `fix(sec): SV-05 unsalted MD5 password hashes, with its regression test` | `backend/tests/test_security.py` (six tests) | a new account's `password_hash` starts with `$argon2id$` (`select username, password_hash from users`); Bandit reports nothing on the backend |
 
 ## Not seeded
 

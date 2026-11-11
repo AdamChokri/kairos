@@ -24,6 +24,10 @@ def register(body: Credentials, db: DbSession) -> User:
 @router.post("/login", response_model=TokenOut)
 def login(body: Credentials, db: DbSession) -> TokenOut:
     user = db.scalar(select(User).where(User.username == body.username))
-    if user is None or not security.verify_password(body.password, user.password_hash):
+    stored = user.password_hash if user else security.DUMMY_HASH
+    if not security.verify_password(body.password, stored) or user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+    if security.needs_rehash(user.password_hash):
+        user.password_hash = security.hash_password(body.password)  # weaker parameters: upgrade now
+        db.commit()
     return TokenOut(access_token=security.create_token(user.id))

@@ -69,3 +69,15 @@ verdict() {
 
 # run_tool [run-tool.sh options] TOOL ARGS... - one sandboxed container (ci/scripts/run-tool.sh).
 run_tool() { "$ROOT/ci/scripts/run-tool.sh" "$@"; }
+
+# tee_stderr - copies its input to the standard output and to the standard error that the script inherited, in a
+# pipeline, so that a gate's list of findings reaches the build log while the next command still reads it.
+# `tee /dev/stderr` must not be used for this: it opens /dev/stderr as a new file and truncates it, and in a Jenkins
+# `sh` step the standard error is the build log itself, so the open erased or overwrote lines of the console (LOG-TRUNC).
+tee_stderr() {
+  local line
+  while IFS= read -r line || [[ -n $line ]]; do
+    printf '%s\n' "$line"
+    printf '%s\n' "$line" >&2
+  done
+}

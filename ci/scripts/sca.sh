@@ -21,6 +21,6 @@ scan frontend frontend/package-lock.json
 rc=0
 run_tool --network --volume kairos-kev-cache:/kev python python /src/ci/scripts/kev_check.py --name sca \
   --trivy /reports/trivy-fs-backend.json /reports/trivy-fs-frontend.json --cache /kev/kev.json \
-  --out /reports/gate-sca.json | tee /dev/stderr > "$REPORTS/gate-sca.txt" || rc=$?
+  --out /reports/gate-sca.json | tee_stderr > "$REPORTS/gate-sca.txt" || rc=$?
 case $rc in 0 | 1) ;; *) die "kev_check.py failed with exit $rc" ;; esac
 verdict sca "$(sed -n 's/^blocking: //p' "$REPORTS/gate-sca.txt")" SCA

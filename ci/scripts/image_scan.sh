@@ -22,6 +22,6 @@ done
 rc=0
 run_tool --network --volume kairos-kev-cache:/kev python python /src/ci/scripts/kev_check.py --name image \
   --trivy /reports/trivy-image-api.json /reports/trivy-image-web.json --cache /kev/kev.json \
-  --out /reports/gate-image.json | tee /dev/stderr > "$REPORTS/gate-image.txt" || rc=$?
+  --out /reports/gate-image.json | tee_stderr > "$REPORTS/gate-image.txt" || rc=$?
 case $rc in 0 | 1) ;; *) die "kev_check.py failed with exit $rc" ;; esac
 verdict image_scan "$(sed -n 's/^blocking: //p' "$REPORTS/gate-image.txt")" IMAGE

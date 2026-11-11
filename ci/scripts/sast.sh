@@ -22,7 +22,7 @@ run_tool --network semgrep semgrep scan --config p/python --config p/typescript 
   --config security/semgrep/ --exclude security/semgrep/tests --exclude node_modules --exclude .venv --exclude .ci \
   --metrics off --quiet --sarif-output /reports/semgrep.sarif . || rc=$?
 [[ $rc == 0 ]] || die "semgrep failed with exit $rc"
-n="$(python3 -I "$ROOT/ci/scripts/sarif_gate.py" --level "$(level_of "$SEMGREP_BLOCK_SEVERITY")" "$REPORTS/semgrep.sarif" | tee /dev/stderr | count)"
+n="$(python3 -I "$ROOT/ci/scripts/sarif_gate.py" --level "$(level_of "$SEMGREP_BLOCK_SEVERITY")" "$REPORTS/semgrep.sarif" | tee_stderr | count)"
 blocked=$((blocked + n))
 
 # --- Bandit: JSON in full, then SARIF, then the verdict at severity and confidence ---
@@ -30,7 +30,7 @@ rc=0
 run_tool python backend/.venv/bin/python -m bandit -c backend/pyproject.toml -r backend/app -f json -o /reports/bandit.json || rc=$?
 [[ $rc == 0 || $rc == 1 ]] || die "bandit failed with exit $rc"
 n="$(python3 -I "$ROOT/ci/scripts/bandit_to_sarif.py" "$REPORTS/bandit.json" --out "$REPORTS/bandit.sarif" \
-  --block-severity "$BANDIT_BLOCK_SEVERITY" --min-confidence "$BANDIT_MIN_CONFIDENCE" | tee /dev/stderr | count)"
+  --block-severity "$BANDIT_BLOCK_SEVERITY" --min-confidence "$BANDIT_MIN_CONFIDENCE" | tee_stderr | count)"
 blocked=$((blocked + n))
 
 # --- ESLint: the repository's flat config, JSON converted to SARIF (eslint_to_sarif.py, erratum E-42) ---
@@ -38,7 +38,7 @@ rc=0
 run_tool --workdir /src/frontend node node node_modules/.bin/eslint --no-cache -f json -o /reports/eslint.json . || rc=$?
 [[ $rc == 0 || $rc == 1 ]] || die "eslint failed with exit $rc"
 python3 -I "$ROOT/ci/scripts/eslint_to_sarif.py" "$REPORTS/eslint.json" --out "$REPORTS/eslint.sarif"
-n="$(python3 -I "$ROOT/ci/scripts/sarif_gate.py" --level "$(level_of "$ESLINT_BLOCK_LEVEL")" "$REPORTS/eslint.sarif" | tee /dev/stderr | count)"
+n="$(python3 -I "$ROOT/ci/scripts/sarif_gate.py" --level "$(level_of "$ESLINT_BLOCK_LEVEL")" "$REPORTS/eslint.sarif" | tee_stderr | count)"
 blocked=$((blocked + n))
 
 # --- SonarQube: main only ---

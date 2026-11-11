@@ -26,5 +26,5 @@ history=(git /src)
 [[ -f $ROOT/security/gitleaks-baseline.json ]] && history+=(--baseline-path /src/security/gitleaks-baseline.json)
 gitleaks_run history "${history[@]}"
 
-blocked="$(python3 -I "$ROOT/ci/scripts/sarif_gate.py" --level note "$REPORTS/gitleaks-files.sarif" "$REPORTS/gitleaks-history.sarif" | tee /dev/stderr | sed -n 's/^blocking: //p')"
+blocked="$(python3 -I "$ROOT/ci/scripts/sarif_gate.py" --level note "$REPORTS/gitleaks-files.sarif" "$REPORTS/gitleaks-history.sarif" | tee_stderr | sed -n 's/^blocking: //p')"
 verdict secrets_scan "$blocked" SECRETS

@@ -25,7 +25,7 @@ for file in "${dockerfiles[@]}"; do
 done
 
 n="$(python3 -I "$ROOT/ci/scripts/sarif_gate.py" --level "$(case $HADOLINT_BLOCK_LEVEL in error) echo error ;; warning) echo warning ;; *) echo note ;; esac)" \
-  "$REPORTS"/hadolint-*.sarif | tee /dev/stderr | sed -n 's/^blocking: //p')"
+  "$REPORTS"/hadolint-*.sarif | tee_stderr | sed -n 's/^blocking: //p')"
 blocked=$((blocked + n))
 
 # Trivy: every misconfiguration that is still FAIL at HIGH or CRITICAL blocks (--severity already filtered the report).

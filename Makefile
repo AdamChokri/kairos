@@ -71,6 +71,7 @@ hooks-selftest:
 rules-test:
 	semgrep --test --metrics off --config security/semgrep/ security/semgrep/tests/
 	@bash ci/tools/check-rule-links.sh
+	@semgrep --metrics off --quiet --error --config security/semgrep/llm-context-unscoped.yaml security/semgrep/tests/llm-context-unscoped-no-model.py && echo 'ok    a module that talks to no model is not flagged by kairos.llm-context-unscoped'
 
 # P4: the pipeline's controls, run locally (WP4.2). Each target runs the script that Jenkins runs. Exit code 2 of a
 # script means "would block, the control is in report mode" (yellow in Jenkins): make reports it and goes on.

@@ -16,3 +16,4 @@ One line per working session (plan section 0.4): it drives the checkpoints of se
 | 2026-11-11 | WP4.6, WP4.7 (begun) | ≈ 3 (estimate) | HOOK-01 closed (D-34); required check in the ruleset; Dependabot version updates with a 7-day cooldown |
 | 2026-11-12 | WP4.7 | ≈ 3 (estimate) | Threat model T-13 to T-15 and two Semgrep rules; Assist v1 refused by the ESLint hook; SV-12 to SV-14 red tests and fixes, pushed once; D-35; AST-01 and AST-02 carried |
 | 2026-11-12 | UI-01 | ≈ 1.5 (estimate) | A designed interface, Graphite: one stylesheet, the font as a file, the states of a finished product, 30 frontend tests; E-50, D-40 |
+| 2026-11-12 | Scope (D-44) | ≈ 0.5 (estimate) | P5 to P8 carried by name (SCP-01 to SCP-05); no code change |

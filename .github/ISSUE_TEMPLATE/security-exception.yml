@@ -13,7 +13,7 @@ body:
     id: tool
     attributes:
       label: Tool
-      description: gitleaks, semgrep, bandit, eslint, hadolint, trivy-fs, trivy-image, trivy-config, zap or sonarqube
+      description: gitleaks, semgrep, bandit, eslint, hadolint, trivy-fs, trivy-image, trivy-config or sonarqube
     validations:
       required: true
   - type: input

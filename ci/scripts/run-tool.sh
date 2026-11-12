@@ -17,9 +17,9 @@
 #   --entrypoint CMD     replace the image's entrypoint (see below for the default)
 #   --workdir DIR        the working directory inside the container (default /src)
 # The entrypoint: `run-tool.sh TOOL COMMAND ARGS` runs COMMAND, whatever the image defines. Several of the pinned images set
-# an ENTRYPOINT of their own (trivy, gitleaks, syft), and Docker passes the arguments to it, so `trivy trivy image ...`
+# an ENTRYPOINT of their own (trivy, gitleaks), and Docker passes the arguments to it, so `trivy trivy image ...`
 # would have run `trivy trivy image ...`. The entrypoint is therefore cleared for every tool (`--entrypoint=`), and a
-# script names the binary it wants (`trivy`, `gitleaks`, `/syft`). The one exception is sonar-scanner: the entrypoint script
+# script names the binary it wants (`trivy`, `gitleaks`). The one exception is sonar-scanner: the entrypoint script
 # of that image turns SONAR_TOKEN into -Dsonar.token and starts the scanner, which is how the first analysis ran.
 # Needs Docker. Exit code: the container's own.
 set -Eeuo pipefail

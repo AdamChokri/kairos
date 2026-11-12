@@ -1,6 +1,6 @@
 /* Kairos interface: one theme, "Graphite" (a dark rail for the tasks, a light page for the task that is open).
-   The font is a file of this repository (src/fonts, SIL OFL 1.1) and every rule is in this file: the page's policy
-   (frontend/nginx-locations.conf) allows its own fonts and styles and nothing inline or from another host.
+   The font is a file of this repository (src/fonts, SIL OFL 1.1) and every rule is in this file: the page
+   needs no inline style, no inline script and no other host (the grep of the interface task checks it).
    Sizes are in rem and the root size grows with the window, so the layout holds from a laptop to a large screen. */
 
 @font-face {

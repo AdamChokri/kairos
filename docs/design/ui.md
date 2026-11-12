@@ -24,11 +24,11 @@ One theme, **Graphite**: a dark rail for the tasks and for Kairos Assist, and a 
 
 ## What must not change
 
-- **The policy of the page** (`nginx-locations.conf`): no inline style, no inline script, no other host, no `data:` font. All styles are in `src/styles.css`; no component sets a `style` attribute.
+- **The rule of the page**: no inline style, no inline script, no other host, no `data:` font, so that the page would run under a strict Content-Security-Policy. All styles are in `src/styles.css`; no component sets a `style` attribute.
 - **SV-03 and SV-12:** a comment and a suggestion are text. `CommentList.tsx` and `AssistPanel.tsx` keep their names and their tests; `react/no-danger` stays an error.
 - **No new dependency** in `package.json`. A change of font is a file, not a package (`src/fonts/README.md`).
 - **The API:** the interface calls the same routes with the same bodies. A comment's time is read as UTC when the API sends it without a zone (`src/format.ts`, tested).
 
 ## Checked
 
-`tsc`, ESLint and Vitest (29 tests) run in the pipeline; the page was rendered in Chromium under the real policy with no violation reported, at 1280, 1707 and 2560 px wide and at 390 px, in every state above. Every text and background pair of `styles.css` has a contrast of at least 4.5:1 (computed, the lowest is 4.52:1) and the marks that are not text at least 3:1. Not checked: other browsers than Chromium, and a screen reader.
+`tsc`, ESLint and Vitest (31 tests) run in the pipeline; the page was rendered in Chromium under a strict policy of its own with no violation reported, at 1280, 1707 and 2560 px wide and at 390 px, in every state above. Every text and background pair of `styles.css` has a contrast of at least 4.5:1 (computed, the lowest is 4.52:1) and the marks that are not text at least 3:1. Not checked: other browsers than Chromium, and a screen reader.

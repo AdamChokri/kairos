@@ -1,17 +1,17 @@
-# Kairos - the runtime stack (plan WP2.1, WP4.5, WP5.3). The same file runs on the Legion, on staging and on
-# production; only the environment differs. SV-09 (containers that run as root, with every capability, a writable
+# Kairos - the runtime stack (plan WP2.1, WP4.5). The same file runs on the Legion and on a host; only the
+# environment differs. SV-09 (containers that run as root, with every capability, a writable
 # root filesystem, no limit, every port on every interface, mutable images) is fixed here:
 #   - every service: read-only root filesystem (tmpfs for /tmp), no capability, no-new-privileges, memory and PID limits;
 #   - the database keeps only the five capabilities its entrypoint needs to hand its files to the postgres user;
 #   - the database is on an internal network (no route out) and nothing but the web tier publishes a port;
-#   - the web port listens on KAIROS_WEB_BIND, which is 127.0.0.1 until WP5.3 sets the host's lab address;
+#   - the web port listens on KAIROS_WEB_BIND, which is 127.0.0.1 unless the host sets its own address;
 #   - images are named by KAIROS_API_IMAGE and KAIROS_WEB_IMAGE: `local/...:dev` built by compose.dev.yaml on the
 #     Legion, and digests (name@sha256:...) pulled by deploy.sh on staging and production. PostgreSQL is the pin
 #     of ci/tools/tools.lock; `ci/tools/check-tools-lock.sh` and `ci/tools/check-container-hardening.py` keep both
 #     true (preflight runs them).
 # Secrets are files, never environment values (SV-01): Compose mounts each one under /run/secrets and the API and
 # the database read them through <NAME>_FILE. On the Legion `make dev-up` makes throwaway files in .dev-secrets/;
-# on staging and production KAIROS_SECRETS_DIR is /etc/kairos/secrets, where the OpenBao Agent renders them.
+# on a host KAIROS_SECRETS_DIR is /etc/kairos/secrets.
 name: kairos
 
 x-hardening: &hardening

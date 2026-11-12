@@ -14,7 +14,6 @@ One line per working session (plan section 0.4): it drives the checkpoints of se
 | 2026-11-11 | WP4.2 to WP4.4 | ≈ 3 (estimate) | The CI pull request; E-42 to E-44, E-53, D-32, D-36; SonarQube new code set; DHT-01 if the token is account-wide |
 | 2026-11-11 | WP4.5 | ≈ 3 (estimate) | SV-01 to SV-05, SV-07 and SV-09 fixed, each with its regression test (red first); REL-01 fixed; static controls in enforce mode except the image gate (ENF-02); D-33; DEP-01 re-read, still open |
 | 2026-11-11 | WP4.6, WP4.7 (begun) | ≈ 3 (estimate) | HOOK-01 closed (D-34); required check in the ruleset; Dependabot version updates with a 7-day cooldown |
-| 2026-11-12 | WP4.7 | ≈ 3 (estimate) | Threat model T-13 to T-15 and two Semgrep rules; Assist v1 refused by the ESLint hook; SV-12 to SV-14 red tests and fixes, pushed once; D-35; AST-01 and AST-02 carried |
+| 2026-11-12 | WP4.7 | ≈ 3 (estimate) | Threat model T-13 to T-15 and two Semgrep rules; Assist v1 refused by the ESLint hook; SV-12 to SV-14 red tests and fixes, pushed once; D-35 |
 | 2026-11-12 | UI-01 | ≈ 1.5 (estimate) | A designed interface, Graphite: one stylesheet, the font as a file, the states of a finished product, 30 frontend tests; E-50, D-40 |
-| 2026-11-12 | Scope (D-44) | ≈ 0.5 (estimate) | P5 to P8 carried by name (SCP-01 to SCP-05); no code change |
 | 2026-11-12 | WP4.7 and UI-01 (closed) | ≈ 0.5 (estimate) | SonarQube's reliability condition fixed in code, no threshold lowered (the autofocus attribute of the New task field); the gate passes on main #13, which has Assist and Graphite (76 backend and 31 frontend tests); DEP-ALERTS closed: GitHub lists one open alert, #33 (DEP-01) |

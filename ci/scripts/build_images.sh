@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ci/scripts/build_images.sh [--cleanup] - builds the two images with the agent's Docker and writes each to
-# images/<name>.tar with `docker save` (plan WP4.2). Trivy (`trivy image --input`) and later Syft read those
+# images/<name>.tar with `docker save` (plan WP4.2). Trivy (`trivy image --input`) reads those
 # files: no scanner container ever gets the Docker socket, which would mean root on the agent.
 # Tags are local to the agent and carry the commit: kairos-api:ci-<12 characters>, kairos-web:ci-<12 characters>.
 # `--cleanup` (the ci stage's post action) removes this build's images and the image files, so the disk does not fill.

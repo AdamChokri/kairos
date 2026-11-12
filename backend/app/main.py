@@ -5,7 +5,7 @@ Seeded weakness SV-08 (security/seeded-vulns.md), the "ordinary misconfiguration
   - CORS allows any origin together with credentials;
   - no security headers, and the framework and Python versions are announced in X-Powered-By;
   - plain HTTP, no TLS (the Compose file and the hosts, not this file).
-WP5.3 and WP5.4 replace these with production settings.
+SV-08 stays as the baseline records it: no step of this project changes these settings.
 """
 
 import platform

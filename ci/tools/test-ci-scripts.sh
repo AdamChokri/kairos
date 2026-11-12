@@ -88,7 +88,7 @@ args="$(tr '\n' ' ' < "$STUB_ARGS")"
 [[ $args == *"--tmpfs /tmp:rw,exec,nosuid,nodev --cap-drop ALL --security-opt no-new-privileges"* && $args == *"--read-only"* ]] || bad "--exec-tmp did not make the /tmp mount executable with the rest of the sandbox kept"
 [[ "$(grep -l -E '^[[:space:]]*run_tool[^#]*--exec-tmp' "$ROOT"/ci/scripts/*.sh | xargs -n1 basename | tr '\n' ' ')" == "sast.sh " ]] || bad "--exec-tmp is not asked for by sast.sh alone"
 ok "--exec-tmp makes only the /tmp mount executable (the root stays read-only, no capability) and only sast.sh uses it"
-# The image entrypoints (trivy, gitleaks and syft define one) must not receive the tool name as an argument.
+# The image entrypoints (trivy and gitleaks define one) must not receive the tool name as an argument.
 PATH="$work/bin:$PATH" bash "$fake/ci/scripts/run-tool.sh" trivy trivy image --input x.tar
 mapfile -t stub < "$STUB_ARGS"
 [[ " ${stub[*]} " == *" --entrypoint= "* ]] || bad "the entrypoint of the image was not cleared"

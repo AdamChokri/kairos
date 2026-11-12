@@ -16,7 +16,7 @@ Controller 2.580.2 LTS on `dso-jenkins`, `http://jenkins.kairos.lab:8080/`, no e
 | Anonymous | nothing (no *Read*) | nothing | nothing |
 | `admin` (break-glass) | Administer | everything | everything |
 | `adam` | Read | Build, Read, Cancel, Workspace, Discover | nothing |
-| `release-manager` | Read | Read, and the right to answer the production `input` (P6) | nothing |
+| `release-manager` | Read | Read | nothing |
 
 - **CSRF protection** stays on, **Agent → controller security** stays on, and the **Markup Formatter** stays on *Plain text*: a build description or a job name is never rendered as HTML.
 - A user without *Administer* cannot open `/script`: that is the check of WP4.1.
@@ -27,7 +27,7 @@ Controller 2.580.2 LTS on `dso-jenkins`, `http://jenkins.kairos.lab:8080/`, no e
 
 ## 3. Resource Root URL
 
-*Manage Jenkins → System → Resource Root URL*: `http://jenkins-res.kairos.lab:8080/`. It is a second host name for the same VM, because Jenkins requires a different host name for the resources it serves. Reports that Jenkins shows as HTML (the Trivy reports of `publishHTML`, ZAP in P5) are then served from that name, so they render with Jenkins' default Content-Security-Policy and without relaxing it. The name is in `infra/lab/lab-hosts.txt`.
+*Manage Jenkins → System → Resource Root URL*: `http://jenkins-res.kairos.lab:8080/`. It is a second host name for the same VM, because Jenkins requires a different host name for the resources it serves. Reports that Jenkins shows as HTML (the Trivy reports of `publishHTML`) are then served from that name, so they render with Jenkins' default Content-Security-Policy and without relaxing it. The name is in `infra/lab/lab-hosts.txt`.
 
 ## 4. OpenBao
 
@@ -37,9 +37,9 @@ Controller 2.580.2 LTS on `dso-jenkins`, `http://jenkins.kairos.lab:8080/`, no e
 
 | Credential ID | AppRole | Used by |
 |---|---|---|
-| `bao-build` | `jenkins-build` | the `ci` stages (SonarQube token, Docker Hub write token) |
-| `bao-deploy` | `jenkins-deploy` | the deploy stages (SSH deploy keys) |
-| `bao-signer` | `jenkins-signer` | the `sign` stage (the Transit key, through a short-lived token) |
+| `bao-build` | `jenkins-build` | the SonarQube analysis of the `main` build (`kv/ci/sonarqube`) |
+| `bao-deploy` | `jenkins-deploy` | no stage of this project: it is kept with the two deploy key pairs (KEY-01, `docs/lab/services.md`) |
+| `bao-signer` | `jenkins-signer` | no stage of this project: kept with the other two (KEY-01) |
 
 Each holds a role ID and a secret ID. The secret ID lasts 90 days (OpenBao enforces it): rotate it with `infra/openbao/` and update the credential. The AppRoles are bound to the controller's address, so a stolen secret ID does not work from another machine. A pull-request build binds none of them.
 
@@ -57,7 +57,7 @@ Other credentials: `github-app` (the GitHub App key, WP1.4) and `slack-bot-token
 - **Behaviours:** *Discover branches* (strategy: *Exclude branches that are also filed as PRs*), *Discover pull requests from origin* (strategy: *Merging the pull request with the current target branch revision*). **No** behaviour for forks: a fork's pull request is never built (it could change the Jenkinsfile).
 - **Build Configuration:** by Jenkinsfile, path `Jenkinsfile`.
 - **Scan Multibranch Pipeline Triggers:** *Periodically if not otherwise run*, every 2 minutes (D-06; there is no webhook, the controller is not reachable from the internet).
-- The old job `kairos-as-is` is kept, with its polling switched off, because WP8.1 runs it on purpose to show the platform refusing it.
+- The old job `kairos-as-is` is kept, with its polling switched off, as the record of the as-is deployment.
 
 ## 7. What was checked
 

@@ -6,8 +6,8 @@
 #
 # The files are world-readable (0444) on purpose: Docker Compose outside Swarm mounts a secret file with the
 # owner and mode it has on the host, and the containers run as other users (the database as `postgres`, the API
-# as UID 10001 after SV-09). They are random values of a development machine, used by nothing else. Staging and
-# production never use this script: their files are rendered by the OpenBao Agent (WP5.3) with 0400 and the
+# as UID 10001 after SV-09). They are random values of a development machine, used by nothing else. A host that is not a
+# development machine never uses this script: its secret files are made with mode 0400 and the
 # container's UID.
 #   bash ci/tools/dev-secrets.sh
 # Needs bash and python3. Exit code 0: both files exist.

@@ -11,7 +11,7 @@ Checks, for security/exceptions.yaml:
   - the expiry: an approved entry past its date fails every build until it is renewed or the finding is fixed;
     one that ends within EXC_WARN_BEFORE_DAYS is listed as a warning;
   - markers and entries agree: every EXC-NNNN in a suppression marker (.trivyignore.yaml, .gitleaksignore, source
-    files, Dockerfiles, the ZAP rule files) names an approved entry, and every approved entry has a marker (SonarQube
+    files, Dockerfiles) names an approved entry, and every approved entry has a marker (SonarQube
     entries have an issue key instead, confirmed with --sonar on the main lane, where the analysis token exists);
   - a Trivy marker's expired_at equals the entry's expires (Trivy enforces its own date).
 Prints the exceptions in force, which is the build log's list of what was waived. Exit code 0 ok, 1 any problem.
@@ -41,7 +41,6 @@ TOOLS = {
     "trivy-fs",
     "trivy-image",
     "trivy-config",
-    "zap",
     "sonarqube",
 }
 STATUSES = {"proposed", "approved", "expired", "revoked"}
@@ -77,7 +76,6 @@ MARKER_GLOBS = (
     "frontend/src/**/*.tsx",
     "frontend/*.js",
     "**/Dockerfile*",
-    "security/policy/zap/*.tsv",
     "deploy/*.yaml",
 )
 SKIP_PARTS = {".venv", "node_modules", "reports", ".git", "tests"}

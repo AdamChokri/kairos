@@ -19,7 +19,7 @@ A live secret (rotate it) and a Critical or KEV-listed vulnerability that has a 
 ## How
 
 1. Write the entry in `security/exceptions.yaml` (the fields are in the file's header): tool, finding, scope, classification (`false_positive`, `not_affected`, `accepted_risk`), severity, justification, compensating controls (required for an accepted risk), requester, approver, creation and expiry dates, and the issue and pull request.
-2. Add the **marker** where the tool looks for it, naming the same `EXC-NNNN`: `.trivyignore.yaml` (with `expired_at` equal to the entry's `expires`), `.gitleaksignore`, an `# nosec`, `// eslint-disable-next-line` or `# nosemgrep` comment, a Hadolint `# hadolint ignore=`, or the ZAP rule files. A marker that names no approved entry fails the build; an approved entry with no marker fails it too.
+2. Add the **marker** where the tool looks for it, naming the same `EXC-NNNN`: `.trivyignore.yaml` (with `expired_at` equal to the entry's `expires`), `.gitleaksignore`, an `# nosec`, `// eslint-disable-next-line` or `# nosemgrep` comment, or a Hadolint `# hadolint ignore=`. A marker that names no approved entry fails the build; an approved entry with no marker fails it too.
 3. Open one pull request with both. `preflight` validates the register.
 4. The maximum duration follows severity: Critical 7 days, High 30, Medium 90, Low 180 (`security/policy/gates.env`).
 

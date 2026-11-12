@@ -1,6 +1,6 @@
 # Baseline scorecard
 
-What every control of the pipeline reports on the Kairos v0 code **as it was seeded**: the first builds of `main` after the controls went live, before any weakness was fixed (plan WP4.2). It is the first column of the detection matrix of WP8.1. The numbers are copied from the build's reports (`reports/` in the build's artifacts) and never rounded or estimated.
+What every control of the pipeline reports on the Kairos v0 code **as it was seeded**: the first builds of `main` after the controls went live, before any weakness was fixed (plan WP4.2). It is the "before" of the project. The numbers are copied from the build's reports (`reports/` in the build's artifacts) and never rounded or estimated.
 
 Build: `kairos` / `main` #2, commit `7b61e7e`, date 2026-11-11. All controls in `report` mode.
 
@@ -21,15 +21,6 @@ Build: `kairos` / `main` #2, commit `7b61e7e`, date 2026-11-11. All controls in 
 | docker_scan | Trivy image, `kairos-api` | 31 (20 OS packages, 11 Python) | 2574 | Critical, High with a fix, KEV, secrets | SV-09 |
 | docker_scan | Trivy image, `kairos-web` | 30 (20 OS packages, 10 Node.js) | 2532 | Critical, High with a fix, KEV, secrets | SV-09 |
 
-## Dynamic controls (WP5.1)
-
-Filled in P8 from `docs/results/dast-before.txt` (the gate's own lines: `<scan>: FAIL a, WARN b, INFO c, IGNORE d`).
-
-| Control | Target | FAIL | WARN | INFO | Report |
-|---|---|---|---|---|---|
-| dast, ZAP baseline | `http://staging.kairos.lab:5173` | | | | |
-| dast, ZAP API scan | `http://staging.kairos.lab:8000/openapi.json` | | | | |
-
 ## Notes
 
 What a tool found that no seeded weakness explains, and what was done about it (a fix, or a tracked item), is written here with the date.
@@ -40,7 +31,7 @@ What a tool found that no seeded weakness explains, and what was done about it (
 
 **WP4.5.7: what else the baseline found, 2026-11-11**
 
-- **REL-01** (SonarQube `typescript:S9383`, `frontend/src/TaskList.tsx`): the call that starts the debounced search was not marked as ignored on purpose, and the gate "Kairos Secure" failed on the first `main` build. Fixed in code the same day: `void searchLater(...)`, with `frontend/src/search.test.tsx`, which guards the property that makes `void` safe (a failed search becomes an alert on the page, never an unhandled rejection). The gate passed on the next `main` build. The later screens of the plan call the same function: the tracked item REL-01 in `docs/lab/services.md` keeps the `void` there.
+- **REL-01** (SonarQube `typescript:S9383`, `frontend/src/TaskList.tsx`): the call that starts the debounced search was not marked as ignored on purpose, and the gate "Kairos Secure" failed on the first `main` build. Fixed in code the same day: `void searchLater(...)`, with `frontend/src/search.test.tsx`, which guards the property that makes `void` safe (a failed search becomes an alert on the page, never an unhandled rejection). The gate passed on the next `main` build. The workspace screen of the interface calls the same function and carries the same `void`.
 - **Image findings, 22 rows** that no seeded weakness explains, all with a fixed version: 9 in the api image (Debian `apt`, `libapt-pkg7.0`, `zlib1g`; `msgpack` and `urllib3` vendored by pip; `setuptools` 70.3.0) and 13 in the web image (Alpine `brotli-libs`, Critical and in the CISA KEV catalog; `libxslt`, one row in KEV; `libexpat`; `musl`; `curl`; `zlib`). Choice: carried, not fixed and not excepted. **BASE-PY**: the `python` tag was re-pushed on 2026-11-08, so the 7-day rule of D-12 allows its new digest from 2026-11-15. **BASE-WEB**: no `alpine3.24` tag of `nginx-unprivileged` is newer than 2026-10-19. The KEV-listed and Critical rows are never excepted (`docs/process/exemptions.md`). `MODE_IMAGE` stays `report` until both close (**ENF-02**).
 - **DEP-01**, read again: `@typescript-eslint/typescript-estree` 8.72.2 still depends on `minimatch` `^10.2.2`; the advisory is fixed in 11.0.1 and later. It stays open and carried.
 - **Version notices** on the builds: Trivy 0.76.2 is UPD-05, ESLint 9.39.5 "no longer supported" is UPD-04, and SonarQube offers a newer build than 26.10 (UPD-06).

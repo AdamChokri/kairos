@@ -1,7 +1,7 @@
 // Jenkinsfile - Kairos DevSecOps pipeline, state of P4 (plan Appendix C).
 // Lanes: pull requests and other branches run the CI controls with no secret at all; main adds SonarQube.
 // Every control is a script of ci/scripts/ that applies its own threshold from security/policy/gates.env and ends
-// with the exit-code protocol of runControl below. The delivery stages are stubs until P5 and P6 fill them.
+// with the exit-code protocol of runControl below.
 // Secrets come from OpenBao through withVault (credential bao-build, an AppRole bound to dso-jenkins) and are
 // used only inside single-quoted sh steps, so Groovy never interpolates them. Pull-request builds bind none.
 
@@ -41,15 +41,11 @@ def notifySlack(String color, String text) {
 
 pipeline {
   agent none
-  environment {
-    BAO_URL = 'https://openbao.kairos.lab:8200'   // used by the Vault token binding of the sign stage (P5)
-  }
   options {
     timestamps()
     disableConcurrentBuilds()
     buildDiscarder(logRotator(numToKeepStr: '30', artifactNumToKeepStr: '15'))
-    copyArtifactPermission('kairos-prod-rescan')  // WP7.4 reads release.env from the last successful build
-    timeout(time: 4, unit: 'HOURS')               // overall cap; includes the approval wait of P6
+    timeout(time: 4, unit: 'HOURS')               // overall cap
   }
   stages {
     stage('ci') {
@@ -105,35 +101,6 @@ pipeline {
           cleanWs()                                   // the workspace is wiped after every build (plan section 8.3)
         }
       }
-    }
-    // The delivery stages are stubs: P5 fills sbom, publish, sign, deploy_staging and dast; P6 the last two.
-    stage('sbom') {
-      when { branch 'main' }
-      steps { echo 'stub: Syft SBOMs arrive in WP5.2' }
-    }
-    stage('publish') {
-      when { branch 'main' }
-      steps { echo 'stub: publishing to Docker Hub arrives in WP5.2' }
-    }
-    stage('sign') {
-      when { branch 'main' }
-      steps { echo 'stub: cosign signing and attestation arrive in WP5.2' }
-    }
-    stage('deploy_staging') {
-      when { branch 'main' }
-      steps { echo 'stub: the signed-only staging deploy arrives in WP5.3' }
-    }
-    stage('dast') {
-      when { branch 'main' }
-      steps { echo 'stub: ZAP arrives in WP5.1 and WP5.4' }
-    }
-    stage('approve_production') {
-      when { branch 'main' }
-      steps { echo 'stub: the production approval arrives in WP6.1' }
-    }
-    stage('deploy_production') {
-      when { branch 'main' }
-      steps { echo 'stub: the production deploy arrives in WP6.1' }
     }
   }
   post {

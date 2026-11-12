@@ -7,13 +7,13 @@ This guide is what a blocked commit or push points to. Every custom Semgrep rule
 | ASVS 5.0 chapter | Focus for Kairos | Verified by |
 |---|---|---|
 | V1 Encoding and Sanitization | Bound parameters, output encoding, no unsafe deserialization | Semgrep, Bandit, SonarQube, tests |
-| V3 Web Frontend Security | CSP, no raw HTML rendering, security headers | ESLint, ZAP, smoke tests |
+| V3 Web Frontend Security | CSP, no raw HTML rendering, security headers | ESLint, smoke tests |
 | V6 Authentication | Argon2id, generic error messages | Bandit, tests |
-| V8 Authorization | Object-level checks (IDOR) | Regression test, pentest |
-| V9 Self-contained Tokens | Algorithm allow-list, signature and `exp` checks, key from a secret file | Tests, pentest |
+| V8 Authorization | Object-level checks (IDOR) | Regression test |
+| V9 Self-contained Tokens | Algorithm allow-list, signature and `exp` checks, key from a secret file | Tests |
 | V12 Secure Communication | TLS 1.2+ only, HSTS | Smoke tests |
 | V13 Configuration | Debug off, no secrets in code or config, docs disabled in production | Gitleaks, smoke tests |
-| V15 Secure Coding and Architecture | Managed, pinned, inventoried dependencies | Trivy, Syft |
+| V15 Secure Coding and Architecture | Managed, pinned, inventoried dependencies | Trivy |
 
 ## How a blocked commit or push explains itself
 
@@ -58,7 +58,7 @@ Whoever can read the code can sign a valid token for any user (an authentication
    )
    ```
 
-2. Give each environment its own value, held in OpenBao and rendered to a file on the host (WP5.3).
+2. Give each environment its own value, held in a secret store (OpenBao) and never in the repository.
 3. If a real secret was committed, treat it as public: rotate it first, and only then clean up. Rewriting history does not take back a copy somebody already holds.
 
 ### Checks
@@ -73,7 +73,7 @@ Gitleaks at commit time and in CI; the Semgrep rule above at push time and in CI
 
 ### How Kairos reads its secrets
 
-Every secret is a file, and the variable `<NAME>_FILE` names it: the API reads `JWT_SECRET_KEY_FILE` and `POSTGRES_PASSWORD_FILE`, the database reads `POSTGRES_PASSWORD_FILE` too. The API refuses to start without a signing key of at least 32 bytes (`backend/tests/test_config.py`), and a secret in a plain environment variable is never read. On the Legion, `make dev-up` makes throwaway files in `.dev-secrets/` (`ci/tools/dev-secrets.sh`, ignored by Git); on staging and production the OpenBao Agent renders them (WP5.3).
+Every secret is a file, and the variable `<NAME>_FILE` names it: the API reads `JWT_SECRET_KEY_FILE` and `POSTGRES_PASSWORD_FILE`, the database reads `POSTGRES_PASSWORD_FILE` too. The API refuses to start without a signing key of at least 32 bytes (`backend/tests/test_config.py`), and a secret in a plain environment variable is never read. On the Legion, `make dev-up` makes throwaway files in `.dev-secrets/` (`ci/tools/dev-secrets.sh`, ignored by Git); anywhere else the files are made by whoever runs the stack, with mode 0400, and never come from the repository.
 
 Kairos v0 committed two fake secrets on purpose (SV-01). They are gone from the files, but a public history keeps them: rewriting it would not take back the copies that exist, and would break every signed commit and pull request. The history scan of the pipeline compares what it finds with `security/gitleaks-baseline.json`, which lists exactly those two findings by fingerprint (decision D-33); any other secret, in any commit, is still reported. The values were fake and are replaced anyway.
 
@@ -112,7 +112,7 @@ The f-string that builds the *pattern* is fine: it builds a value, not the SQL. 
 
 ### Checks
 
-Semgrep at push time and in CI, Bandit B608 (reported, below the blocking threshold), SonarQube, and the ZAP API scan against the running application. The regression test sends an injection payload and expects only the caller's tasks (WP4.5).
+Semgrep at push time and in CI, Bandit B608 (reported, below the blocking threshold) and SonarQube. The regression test sends an injection payload and expects only the caller's tasks (WP4.5).
 
 ### References
 
@@ -146,13 +146,13 @@ Render the value as text. React escapes text children, so markup in the value is
 <li>{comment.body}</li>
 ```
 
-If HTML really is required (a rich-text feature), sanitize it with a maintained library on a trusted layer first, and add a Content-Security-Policy that forbids inline script, so a missed case is still contained (WP5.3, SV-08).
+If HTML really is required (a rich-text feature), sanitize it with a maintained library on a trusted layer first, and add a Content-Security-Policy that forbids inline script, so a missed case is still contained.
 
 The same holds for text a language model wrote (SV-12, Kairos Assist): the model's answer is as untrusted as a form field, because anyone whose text reached its prompt can steer it. The API asks for JSON, validates the answer against a Pydantic schema with `extra="forbid"` and length limits, refuses what does not fit with a message that does not repeat it, and the page shows the fields as text.
 
 ### Checks
 
-ESLint at commit time, Semgrep at push time and in CI, SonarQube, the ZAP scans. The regression test renders a comment holding an `<img onerror>` payload and expects inert text (Vitest, WP4.5).
+ESLint at commit time, Semgrep at push time and in CI, SonarQube. The regression test renders a comment holding an `<img onerror>` payload and expects inert text (Vitest, WP4.5).
 
 ### References
 

@@ -15,7 +15,7 @@ lab-status:
 	@bash infra/lab/lab-status.sh
 
 # P2: the as-is practices on the build agent and the runtime hosts (WP2.2). Run a second time it
-# must report changed=0; add -e as_is_state=absent to the command to remove them (WP5.3, WP6.1).
+# must report changed=0; add -e as_is_state=absent to the command to remove them.
 as-is:
 	cd infra/ansible && ansible-playbook site.yml --tags as-is
 

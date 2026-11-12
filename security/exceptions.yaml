@@ -6,7 +6,7 @@
 # One entry looks like this (the real values are filled in when a case occurs):
 #   - id: EXC-0001
 #     status: approved                 # proposed | approved | expired | revoked
-#     tool: trivy-image                # gitleaks | semgrep | bandit | eslint | hadolint | trivy-fs | trivy-image | trivy-config | zap | sonarqube
+#     tool: trivy-image                # gitleaks | semgrep | bandit | eslint | hadolint | trivy-fs | trivy-image | trivy-config | sonarqube
 #     finding: CVE-XXXX-YYYY
 #     scope: "kairos-api image, package <name>@<version>"
 #     classification: accepted_risk    # false_positive | not_affected | accepted_risk

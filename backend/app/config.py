@@ -2,7 +2,7 @@
 
 Every secret is read from a file whose path an environment variable gives (`<NAME>_FILE`), never
 from the source or from a plain environment variable: the files are throwaway ones in development
-and in CI, and are rendered by the OpenBao Agent in staging and production (SV-01, fixed in WP4.5).
+and in CI, and are made by whoever runs the stack anywhere else (SV-01, fixed in WP4.5).
 The API refuses to start without a signing key of at least 32 bytes.
 """
 

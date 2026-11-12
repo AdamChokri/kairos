@@ -115,6 +115,16 @@ describe("the task list", () => {
     expect(calls.find((call) => call.method === "POST")?.body).toBe(JSON.stringify({ title: "Pay the invoice", description: "" }));
     expect(screen.queryByRole("form", { name: "New task" })).toBeNull();
   });
+
+  it("puts the focus in the title field when the New task form opens", async () => {
+    serve({ "GET /api/tasks": () => json([task(1, "Book the room")]) });
+    render(<App />);
+    await screen.findByText("Book the room");
+
+    fireEvent.click(screen.getByRole("button", { name: "New task" }));
+
+    expect(document.activeElement).toBe(screen.getByLabelText("New task title"));
+  });
 });
 
 describe("a task", () => {

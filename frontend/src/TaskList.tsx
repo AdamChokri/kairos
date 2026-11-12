@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import type { Task } from "./api";
 import { AlertIcon, SearchIcon } from "./Icons";
@@ -46,6 +46,13 @@ export function TaskList({ tasks, selectedId, state, error, search, onSearch, on
   const [title, setTitle] = useState("");
   const [addError, setAddError] = useState("");
   const [busy, setBusy] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+
+  // The focus moves into the form because the person opened it, not because the page decided so (the HTML autofocus
+  // attribute is flagged by SonarQube as an accessibility problem; TaskPage moves focus the same way).
+  useEffect(() => {
+    if (adding) titleRef.current?.focus();
+  }, [adding]);
 
   async function create(event: FormEvent) {
     event.preventDefault();
@@ -101,7 +108,7 @@ export function TaskList({ tasks, selectedId, state, error, search, onSearch, on
               maxLength={200}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Escape" && closeForm()}
-              autoFocus
+              ref={titleRef}
               required
             />
             <div className="add-actions">

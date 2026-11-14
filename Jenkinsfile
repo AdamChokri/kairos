@@ -2,6 +2,7 @@
 // Lanes: pull requests and other branches run the CI controls with no secret at all; main adds SonarQube.
 // Every control is a script of ci/scripts/ that applies its own threshold from security/policy/gates.env and ends
 // with the exit-code protocol of runControl below.
+// The seven stages after ci are placeholders: each prints one line and does nothing (D-46).
 // Secrets come from OpenBao through withVault (credential bao-build, an AppRole bound to dso-jenkins) and are
 // used only inside single-quoted sh steps, so Groovy never interpolates them. Pull-request builds bind none.
 
@@ -101,6 +102,36 @@ pipeline {
           cleanWs()                                   // the workspace is wiped after every build (plan section 8.3)
         }
       }
+    }
+    // The seven stages below are placeholders (D-46): each prints one line and does nothing. The pipeline builds and
+    // scans the images and stops there; nothing is published, signed, deployed or scanned dynamically (T-02).
+    stage('sbom') {
+      when { branch 'main' }
+      steps { echo 'placeholder: no SBOM is made; the pipeline stops after the image scan (D-46)' }
+    }
+    stage('publish') {
+      when { branch 'main' }
+      steps { echo 'placeholder: nothing is published; the pipeline stops after the image scan (D-46)' }
+    }
+    stage('sign') {
+      when { branch 'main' }
+      steps { echo 'placeholder: nothing is signed; the pipeline stops after the image scan (D-46)' }
+    }
+    stage('deploy_staging') {
+      when { branch 'main' }
+      steps { echo 'placeholder: nothing is deployed to staging (D-46)' }
+    }
+    stage('dast') {
+      when { branch 'main' }
+      steps { echo 'placeholder: no dynamic scan is run (D-46)' }
+    }
+    stage('approve_production') {
+      when { branch 'main' }
+      steps { echo 'placeholder: there is no production approval to ask for (D-46)' }
+    }
+    stage('deploy_production') {
+      when { branch 'main' }
+      steps { echo 'placeholder: nothing is deployed to production (D-46)' }
     }
   }
   post {

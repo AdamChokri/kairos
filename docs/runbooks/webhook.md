@@ -49,7 +49,7 @@ The agent opens the connection to ngrok itself, so nothing is opened on the rout
 | 403 | The signature does not match: the secret differs between GitHub, `kv/infra/ngrok` and the Jenkins credential |
 | Timeout, or an ngrok error page | The agent is down, or the free plan's monthly cap is used up |
 
-Nothing recovers a lost event by itself, because the periodic scan is off (D-45): in the App's *Recent Deliveries* press *Redeliver* on it, or press *Scan Repository Now* on the job in Jenkins, which asks GitHub for the real state of every branch and pull request. To close the route at once, stop the agent (on `dso-jenkins`: `sudo docker compose -f /opt/jenkins/compose.yaml stop ngrok`); Jenkins is not touched. To go back to polling (D-06), tick *Periodically if not otherwise run* on the job again (it was 2 minutes); the supervisor excluded it, so that is a decision, not a repair.
+Nothing recovers a lost event by itself, because the periodic scan is off (D-45): in the App's *Recent Deliveries* press *Redeliver* on it, or press *Scan Repository Now* on the job in Jenkins, which asks GitHub for the real state of every branch and pull request. The same press removes what a closed pull request or a deleted branch leaves behind: their events strike the entry through and mark it *Disabled* in Jenkins (seen on 2026-11-14), and it stays listed until a scan runs. To close the route at once, stop the agent (on `dso-jenkins`: `sudo docker compose -f /opt/jenkins/compose.yaml stop ngrok`); Jenkins is not touched. To go back to polling (D-06), tick *Periodically if not otherwise run* on the job again (it was 2 minutes); the supervisor excluded it, so that is a decision, not a repair.
 
 ## 5. Rotation
 

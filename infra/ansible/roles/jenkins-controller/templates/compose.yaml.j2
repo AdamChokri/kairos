@@ -14,5 +14,30 @@ services:
     volumes:
       - jenkins_home:/var/jenkins_home
 
+  # WP4.8 (D-45): GitHub's webhook reaches Jenkins through this agent. It dials ngrok outbound (443) and publishes
+  # no port; its policy (templates/ngrok.yml.j2) lets only a signed POST /github-webhook/ through to Jenkins.
+  ngrok:
+    image: "{{ image_ngrok }}"
+    pull_policy: missing
+    restart: unless-stopped
+    depends_on:
+      - jenkins
+    command: ["start", "--all", "--config", "/etc/ngrok/ngrok.yml"]
+    # The configuration holds two secrets: it is root:ngrok-cfg 0640, and the container's own user reads it
+    # through that group.
+    group_add:
+      - "10501"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    pids_limit: 128
+    volumes:
+      - {{ jenkins_dir }}/ngrok/ngrok.yml:/etc/ngrok/ngrok.yml:ro
+
 volumes:
   jenkins_home:

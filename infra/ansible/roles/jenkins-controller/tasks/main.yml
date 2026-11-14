@@ -57,6 +57,47 @@
     group: root
     mode: "0644"
 
+# The webhook route (WP4.8, D-45): an ngrok agent next to the controller, configured from OpenBao.
+- name: The ngrok agent image is pinned by digest
+  ansible.builtin.assert:
+    that:
+      - image_ngrok is search('@sha256:[0-9a-f]{64}$')
+      - image_ngrok is not search('@sha256:0{64}$')
+    fail_msg: "Pin the image first: ci/tools/pin-images.sh image_ngrok"
+    quiet: true
+
+- name: The OpenBao secret kv/infra/ngrok holds the three fields the agent needs
+  ansible.builtin.assert:
+    that:
+      - secret_ngrok.authtoken | default('') | length > 20
+      - secret_ngrok.webhook_secret | default('') | length >= 32
+      - secret_ngrok.domain | default('') is match('^[a-z0-9-]+[.]ngrok-free[.](dev|app)$')
+    fail_msg: "kv/infra/ngrok needs authtoken, webhook_secret and domain: docs/runbooks/webhook.md, setup step 2"
+    quiet: true
+
+- name: The group that may read the agent's configuration exists
+  ansible.builtin.group:
+    name: ngrok-cfg
+    gid: 10501
+
+- name: The ngrok folder exists
+  ansible.builtin.file:
+    path: "{{ jenkins_dir }}/ngrok"
+    state: directory
+    owner: root
+    group: ngrok-cfg
+    mode: "0750"
+
+- name: The agent's configuration is rendered from OpenBao (it holds two secrets)
+  ansible.builtin.template:
+    src: ngrok.yml.j2
+    dest: "{{ jenkins_dir }}/ngrok/ngrok.yml"
+    owner: root
+    group: ngrok-cfg
+    mode: "0640"
+  no_log: true
+  notify: Restart ngrok
+
 - name: The Compose file is in place
   ansible.builtin.template:
     src: compose.yaml.j2
@@ -70,7 +111,7 @@
     project_src: "{{ jenkins_dir }}"
     project_name: jenkins
     state: present
-    pull: never
+    pull: policy   # each service's own pull_policy: the local jenkins image is never pulled, ngrok's is when missing
 
 - name: The controller answers on port 8080
   ansible.builtin.uri:

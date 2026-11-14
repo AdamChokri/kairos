@@ -3,7 +3,7 @@
 #   runtime  copies that virtual environment and the application and runs as UID 10001. The image holds
 #            no secret: the signing key and the database password are files mounted at run time (SV-01).
 # It is meant to run with a read-only root filesystem and no capability (deploy/compose.yaml).
-FROM python:3.13.18-slim-trixie@sha256:76baad6037690d6e8c4397fbcaef17bca6f19eecef822b708fe8fa3417d30bb5 AS build
+FROM python:3.15.0-slim-trixie@sha256:f5b92f2a669a4c347044f29367f31983280b648250ca94dea66f98c53bc87e58 AS build
 
 ENV UV_PYTHON_DOWNLOADS=never \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir uv==0.13.6
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-FROM python:3.13.18-slim-trixie@sha256:76baad6037690d6e8c4397fbcaef17bca6f19eecef822b708fe8fa3417d30bb5
+FROM python:3.15.0-slim-trixie@sha256:f5b92f2a669a4c347044f29367f31983280b648250ca94dea66f98c53bc87e58
 
 ARG GIT_SHA=dev
 RUN groupadd --system --gid 10001 kairos \

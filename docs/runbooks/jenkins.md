@@ -43,7 +43,7 @@ Controller 2.580.2 LTS on `dso-jenkins`, `http://jenkins.kairos.lab:8080/`, no e
 
 Each holds a role ID and a secret ID. The secret ID lasts 90 days (OpenBao enforces it): rotate it with `infra/openbao/` and update the credential. The AppRoles are bound to the controller's address, so a stolen secret ID does not work from another machine. A pull-request build binds none of them.
 
-Other credentials: `github-app` (the GitHub App key, WP1.4) and `slack-bot-token` (the Slack bot token, kind *Secret text*, WP4.3).
+Other credentials: `github-app` (the GitHub App key, WP1.4) `slack-bot-token` (the Slack bot token, kind *Secret text*, WP4.3) and `github-webhook-secret` (the webhook's shared secret, kind *Secret text*, WP4.8).
 
 ## 5. Slack
 
@@ -56,13 +56,13 @@ Other credentials: `github-app` (the GitHub App key, WP1.4) and `slack-bot-token
 - **Branch Sources:** GitHub, credentials `github-app`, repository `AdamChokri/kairos`.
 - **Behaviours:** *Discover branches* (strategy: *Exclude branches that are also filed as PRs*), *Discover pull requests from origin* (strategy: *Merging the pull request with the current target branch revision*). **No** behaviour for forks: a fork's pull request is never built (it could change the Jenkinsfile).
 - **Build Configuration:** by Jenkinsfile, path `Jenkinsfile`.
-- **Scan Multibranch Pipeline Triggers:** *Periodically if not otherwise run*, every 2 minutes (D-06; there is no webhook, the controller is not reachable from the internet).
+- **Scan Repository Triggers** (the heading in this Jenkins; the older text called it *Scan Multibranch Pipeline Triggers*): *Periodically if not otherwise run* is **off** (D-45 supersedes D-06's 2 minutes). The only trigger is the GitHub App's webhook, delivered through the ngrok agent on `dso-jenkins`: setup, checks and rotation in `docs/runbooks/webhook.md`. A lost event is redelivered by hand.
 - The old job `kairos-as-is` is kept, with its polling switched off, as the record of the as-is deployment.
 
 ## 7. What was checked
 
 - A user that is not `admin` gets *403* on `/script`.
-- A push and a pull request each start a build within about 2 minutes, and the commit status appears on GitHub.
+- A push and a pull request each start a build, and the commit status appears on GitHub: under D-06 within about 2 minutes (a scan), since D-45 when GitHub's webhook reports the change (`docs/runbooks/webhook.md` section 3).
 - Each AppRole reads its own paths and nothing else: `bash infra/openbao/test-approles.sh` (P1, 30 checks). The first `main` build reads `kv/ci/sonarqube` through `bao-build`, and OpenBao's audit log (`/var/log/openbao/audit.log` on `dso-bao`) shows the read coming from `192.168.1.71` only. A pull-request build has no `withVault` step and no `VAULT_TOKEN` at all.
 
 Screens: `EV-25-*.png` in `docs/evidence/`.

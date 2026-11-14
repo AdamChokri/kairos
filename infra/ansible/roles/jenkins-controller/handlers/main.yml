@@ -1,0 +1,8 @@
+---
+# Handlers of the role jenkins-controller (WP4.8, D-45).
+- name: Restart ngrok
+  community.docker.docker_compose_v2:
+    project_src: "{{ jenkins_dir }}"
+    project_name: jenkins
+    services: [ngrok]
+    state: restarted

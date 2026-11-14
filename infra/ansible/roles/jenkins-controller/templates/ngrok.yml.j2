@@ -1,0 +1,34 @@
+# /opt/jenkins/ngrok/ngrok.yml - managed by Ansible (infra/ansible/roles/jenkins-controller), WP4.8, D-45.
+# The configuration of the ngrok agent that carries GitHub's webhook to Jenkins. It holds two secrets (the
+# authtoken and the webhook secret), read from OpenBao (kv/infra/ngrok) when Ansible runs, so the file is
+# root:ngrok-cfg 0640 and is never in Git. The public address is the account's dev domain, also read from OpenBao.
+#   1. A request that is not POST /github-webhook/ is answered 404 at ngrok's edge and goes no further.
+#   2. A POST without a valid GitHub signature is answered 403 at the edge (a second check is made by Jenkins).
+#   3. Only then is the request sent to Jenkins, over the Compose network. The agent publishes no port.
+version: 3
+agent:
+  log: stdout
+  log_level: info
+  # The local web interface and its API have no authentication and nothing here uses them: off (T-18).
+  web_addr: false
+  authtoken: {{ secret_ngrok.authtoken | to_json }}
+endpoints:
+  - name: jenkins-webhook
+    url: {{ ('https://' ~ secret_ngrok.domain) | to_json }}
+    upstream:
+      url: http://jenkins:8080
+    traffic_policy:
+      on_http_request:
+        - name: only-the-webhook-route
+          expressions:
+            - "req.url.path != '/github-webhook/' || req.method != 'POST'"
+          actions:
+            - type: deny
+              config:
+                status_code: 404
+        - name: github-signature
+          actions:
+            - type: verify-webhook
+              config:
+                provider: github
+                secret: {{ secret_ngrok.webhook_secret | to_json }}

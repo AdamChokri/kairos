@@ -11,6 +11,7 @@ What runs in the lab, where, at which version, and the facts later work packages
 | Kairos v0 staging (as-is) | `http://staging.kairos.lab:8000` (API), `:5173` (web) | `dso-staging` | PostgreSQL 17, `adamchokri22/kairos-api:latest` and `adamchokri22/kairos-web:latest` (mutable tags: as-is) | Deployed by `kairos-as-is`; `deploy` account with a password (SV-11) |
 | Kairos v0 production (as-is) | `http://prod.kairos.lab:8000`, `:5173` | `dso-prod` | the same | Only when the job's `DEPLOY_PRODUCTION` box is ticked |
 | Jenkins job `kairos-as-is` | `http://jenkins.kairos.lab:8080/job/kairos-as-is/` | `dso-jenkins` (builds on `dso-agent`) | Multibranch Pipeline of `ci/as-is/Jenkinsfile`, periodic scan every 5 minutes (E-31) | Kept for WP8.1; the periodic scan is switched off in WP4.1 |
+| ngrok agent (webhook route) | public: the account's dev domain, in OpenBao `kv/infra/ngrok`; only `POST /github-webhook/` | `dso-jenkins` | `ngrok/ngrok:3.39.13-alpine` by digest (`infra/ansible/group_vars/all/images.yml`) | Outbound only, no published port; configuration rendered by Ansible from OpenBao; setup, checks and rotation: `docs/runbooks/webhook.md` (D-45) |
 
 ## SonarQube quality gate "Kairos Secure" (plan section 4.2)
 

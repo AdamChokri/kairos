@@ -4,23 +4,23 @@ version = "0.1.0"
 description = "Kairos v0 - task manager API (as-is state with seeded weaknesses, see security/seeded-vulns.md)"
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi==0.162.0",
+    "fastapi==0.163.1",
     "uvicorn==0.54.0",
-    "sqlalchemy==2.1.6",
-    "psycopg[binary]==3.3.6",
-    "pydantic==2.14.1",
-    "pyjwt==2.15.0",
+    "sqlalchemy==2.1.8",
+    "psycopg[binary]==3.3.9",
+    "pydantic==2.14.3",
+    "pyjwt==2.15.1",
     "pyyaml==6.0.3",
     "argon2-cffi==25.1.0",
-    "openai==3.42.1",
+    "openai==3.51.0",
 ]
 
 [dependency-groups]
 dev = [
     "pytest==9.2.0",
     "pytest-cov==7.1.0",
-    "httpx2==2.16.0",
-    "ruff==0.17.3",
+    "httpx2==2.16.2",
+    "ruff==0.17.5",
     "bandit==1.9.4",
 ]
 
